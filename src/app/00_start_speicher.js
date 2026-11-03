@@ -75,12 +75,17 @@
   // ---------- Zeitmessung in Serien (5 oder 10 Aufgaben am Stück) ----------
   // Gespeichert unter "__zeiten": { "<thema>-<stufe>": [{ g: 5|10, ms, p: Punkte, d: "JJJJ-MM-TT" }, …] }
   // und die gewählte Seriengröße unter "__serie": { g: 5|10 }.
-  const ZEIT_KEY = "__zeiten", SERIE_KEY = "__serie", MAX_SERIEN = 200;
+  const ZEIT_KEY = "__zeiten", SERIE_KEY = "__serie", SPIELER_KEY = "__spieler", MAX_SERIEN = 200, MAX_NAME = 30;
+  // Name für die Bestenliste (wer gerade übt); wird bei jeder abgeschlossenen Serie mitgespeichert
+  function spielerName() { const s = statsCache[SPIELER_KEY]; return s && typeof s.name === "string" ? s.name : ""; }
+  function setzeSpielerName(n) { statsCache[SPIELER_KEY] = { name: String(n || "").replace(/\s+/g, " ").trim().slice(0, MAX_NAME) }; persistStats(); }
   function serieGroesse() { const s = statsCache[SERIE_KEY]; return s && s.g === 10 ? 10 : 5; }
   function setzeSerieGroesse(g) { statsCache[SERIE_KEY] = { g: g === 10 ? 10 : 5 }; persistStats(); }
   function speichereSerie(topicKey, levelId, g, ms, punkte) {
     const z = statsCache[ZEIT_KEY] || (statsCache[ZEIT_KEY] = {}), k = statKey(topicKey, levelId);
-    z[k] = (z[k] || []).concat([{ g, ms: Math.max(0, Math.round(ms)), p: punkte, d: new Date().toISOString().slice(0, 10) }]).slice(-MAX_SERIEN);
+    const eintrag = { g, ms: Math.max(0, Math.round(ms)), p: punkte, d: new Date().toISOString().slice(0, 10) };
+    if (spielerName()) eintrag.n = spielerName();
+    z[k] = (z[k] || []).concat([eintrag]).slice(-MAX_SERIEN);
     persistStats();
   }
   // Rangfolge: mehr Punkte zuerst, bei Gleichstand die kürzere Zeit

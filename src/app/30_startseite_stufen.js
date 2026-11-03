@@ -91,21 +91,25 @@
     const wahl = el("div", { class: "choice-btn-group serie-wahl" });
     [5, 10].forEach((n) => wahl.appendChild(el("button", { type: "button", class: "choice-btn" + (n === g ? " selected" : ""), onclick: () => { setzeSerieGroesse(n); render(); } }, [document.createTextNode(`${n} Aufgaben`)])));
     box.appendChild(el("div", { class: "field-row" }, [text("label", "", "Seriengröße"), wahl]));
+    const nameFeld = el("input", { type: "text", class: "name-in", maxlength: String(MAX_NAME), placeholder: "z. B. Lena", value: spielerName(), autocomplete: "off", "aria-label": "Name für die Bestenliste" });
+    nameFeld.addEventListener("input", () => setzeSpielerName(nameFeld.value));
+    nameFeld.addEventListener("change", () => { setzeSpielerName(nameFeld.value); render(); });
+    box.appendChild(el("div", { class: "field-row" }, [text("label", "", "Wer übt gerade? (Name für neue Serien)"), nameFeld]));
     const zeilen = topic.levels.map((l) => ({ l, liste: serienVon(state.topicKey, l.id, g) })).filter((z) => z.liste.length);
     if (!zeilen.length) { box.appendChild(text("div", "exam-small", `Noch keine ${g}er-Serie abgeschlossen.`)); return box; }
     const tab = el("table", { class: "besten-tab" });
     const kurzDatum = (d) => { const [j, m, t] = d.split("-"); return `${t}.${m}.${j.slice(2)}`; };
-    tab.appendChild(el("tr", {}, ["Stufe", "Zeit", "Punkte", "Datum"].map((h) => text("th", "", h))));
+    tab.appendChild(el("tr", {}, ["Stufe", "Name", "Zeit", "Punkte"].map((h) => text("th", "", h))));
     zeilen.forEach(({ l, liste }) => {
       const b = liste[0];
-      tab.appendChild(el("tr", {}, [text("td", "", l.name), text("td", "nowrap", zeitText(b.ms).replace(" min", "")), text("td", "nowrap", `${punkteText2(b.p)}/${g}`), text("td", "nowrap", kurzDatum(b.d))]));
+      tab.appendChild(el("tr", {}, [text("td", "", l.name), text("td", "besten-name", b.n || "–"), text("td", "nowrap", zeitText(b.ms).replace(" min", "")), text("td", "nowrap", `${punkteText2(b.p)}/${g}`)]));
     });
     box.appendChild(tab);
     zeilen.forEach(({ l, liste }) => {
       const d = el("details", { class: "besten-details" });
       d.appendChild(el("summary", {}, [document.createTextNode(`${l.name}: Top ${Math.min(5, liste.length)} von ${liste.length} ${liste.length === 1 ? "Serie" : "Serien"}`)]));
       const ol = el("ol", {});
-      liste.slice(0, 5).forEach((e) => ol.appendChild(text("li", "", `${zeitText(e.ms)} · ${punkteText2(e.p)}/${g} Punkte · ${e.d.split("-").reverse().join(".")}`)));
+      liste.slice(0, 5).forEach((e) => ol.appendChild(text("li", "", `${e.n ? e.n + ": " : ""}${zeitText(e.ms)} · ${punkteText2(e.p)}/${g} Punkte · ${kurzDatum(e.d)}`)));
       d.appendChild(ol); box.appendChild(d);
     });
     return box;

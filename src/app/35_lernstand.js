@@ -45,10 +45,13 @@
           const mm = /^([a-z_]+)-(\d+)$/.exec(stufe);
           if (!mm || !Array.isArray(liste) || liste.length > 200) return { fehler: "Ungültige Zeitmessungen." };
           if (!ML.TOPICS[mm[1]] || !ML.TOPICS[mm[1]].levels.some((l) => l.id === +mm[2])) continue;
-          for (const e of liste) if (!e || ![5, 10].includes(e.g) || !ganz(e.ms, 0, 864e5) || typeof e.p !== "number" || e.p < 0 || e.p > e.g || (e.p * 2) % 1 || !/^\d{4}-\d{2}-\d{2}$/.test(String(e.d))) return { fehler: `Ungültige Zeitmessung bei „${stufe}“.` };
-          z[stufe] = liste.map((e) => ({ g: e.g, ms: e.ms, p: e.p, d: e.d }));
+          for (const e of liste) if (!e || (e.n !== undefined && (typeof e.n !== "string" || e.n.length > 30)) || ![5, 10].includes(e.g) || !ganz(e.ms, 0, 864e5) || typeof e.p !== "number" || e.p < 0 || e.p > e.g || (e.p * 2) % 1 || !/^\d{4}-\d{2}-\d{2}$/.test(String(e.d))) return { fehler: `Ungültige Zeitmessung bei „${stufe}“.` };
+          z[stufe] = liste.map((e) => Object.assign({ g: e.g, ms: e.ms, p: e.p, d: e.d }, e.n ? { n: e.n } : {}));
         }
         rein[k] = z;
+      } else if (k === "__spieler") {
+        if (typeof v.name !== "string" || v.name.length > 30) return { fehler: "Ungültiger Name in der Sicherung." };
+        rein[k] = { name: v.name };
       } else if (k === "__serie") {
         rein[k] = { g: v.g === 10 ? 10 : 5 };
       }

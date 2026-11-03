@@ -207,6 +207,8 @@
   .besten-tab th, .besten-tab td { text-align: left; padding: 5px 6px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
   .besten-tab th { color: #475569; font-weight: 600; }
   .besten-tab td.nowrap { white-space: nowrap; }
+  .besten-tab td.besten-name { word-break: break-word; }
+  .field-row input.name-in { max-width: 260px; }
   .besten-details summary { cursor: pointer; margin-top: 6px; font-size: 0.92em; color: var(--accent); }
   .besten-details ol { margin: 4px 0 0 0; padding-left: 22px; font-size: 0.92em; }
   .serie-zaehler { margin-left: 12px; color: #475569; font-size: 0.92em; white-space: nowrap; }
@@ -8897,12 +8899,17 @@ const KLAUSUR_PROBLEMS = [
   // ---------- Zeitmessung in Serien (5 oder 10 Aufgaben am Stück) ----------
   // Gespeichert unter "__zeiten": { "<thema>-<stufe>": [{ g: 5|10, ms, p: Punkte, d: "JJJJ-MM-TT" }, …] }
   // und die gewählte Seriengröße unter "__serie": { g: 5|10 }.
-  const ZEIT_KEY = "__zeiten", SERIE_KEY = "__serie", MAX_SERIEN = 200;
+  const ZEIT_KEY = "__zeiten", SERIE_KEY = "__serie", SPIELER_KEY = "__spieler", MAX_SERIEN = 200, MAX_NAME = 30;
+  // Name für die Bestenliste (wer gerade übt); wird bei jeder abgeschlossenen Serie mitgespeichert
+  function spielerName() { const s = statsCache[SPIELER_KEY]; return s && typeof s.name === "string" ? s.name : ""; }
+  function setzeSpielerName(n) { statsCache[SPIELER_KEY] = { name: String(n || "").replace(/\s+/g, " ").trim().slice(0, MAX_NAME) }; persistStats(); }
   function serieGroesse() { const s = statsCache[SERIE_KEY]; return s && s.g === 10 ? 10 : 5; }
   function setzeSerieGroesse(g) { statsCache[SERIE_KEY] = { g: g === 10 ? 10 : 5 }; persistStats(); }
   function speichereSerie(topicKey, levelId, g, ms, punkte) {
     const z = statsCache[ZEIT_KEY] || (statsCache[ZEIT_KEY] = {}), k = statKey(topicKey, levelId);
-    z[k] = (z[k] || []).concat([{ g, ms: Math.max(0, Math.round(ms)), p: punkte, d: new Date().toISOString().slice(0, 10) }]).slice(-MAX_SERIEN);
+    const eintrag = { g, ms: Math.max(0, Math.round(ms)), p: punkte, d: new Date().toISOString().slice(0, 10) };
+    if (spielerName()) eintrag.n = spielerName();
+    z[k] = (z[k] || []).concat([eintrag]).slice(-MAX_SERIEN);
     persistStats();
   }
   // Rangfolge: mehr Punkte zuerst, bei Gleichstand die kürzere Zeit
@@ -9066,21 +9073,25 @@ const KLAUSUR_PROBLEMS = [
     const wahl = el("div", { class: "choice-btn-group serie-wahl" });
     [5, 10].forEach((n) => wahl.appendChild(el("button", { type: "button", class: "choice-btn" + (n === g ? " selected" : ""), onclick: () => { setzeSerieGroesse(n); render(); } }, [document.createTextNode(`${n} Aufgaben`)])));
     box.appendChild(el("div", { class: "field-row" }, [text("label", "", "Seriengröße"), wahl]));
+    const nameFeld = el("input", { type: "text", class: "name-in", maxlength: String(MAX_NAME), placeholder: "z. B. Lena", value: spielerName(), autocomplete: "off", "aria-label": "Name für die Bestenliste" });
+    nameFeld.addEventListener("input", () => setzeSpielerName(nameFeld.value));
+    nameFeld.addEventListener("change", () => { setzeSpielerName(nameFeld.value); render(); });
+    box.appendChild(el("div", { class: "field-row" }, [text("label", "", "Wer übt gerade? (Name für neue Serien)"), nameFeld]));
     const zeilen = topic.levels.map((l) => ({ l, liste: serienVon(state.topicKey, l.id, g) })).filter((z) => z.liste.length);
     if (!zeilen.length) { box.appendChild(text("div", "exam-small", `Noch keine ${g}er-Serie abgeschlossen.`)); return box; }
     const tab = el("table", { class: "besten-tab" });
     const kurzDatum = (d) => { const [j, m, t] = d.split("-"); return `${t}.${m}.${j.slice(2)}`; };
-    tab.appendChild(el("tr", {}, ["Stufe", "Zeit", "Punkte", "Datum"].map((h) => text("th", "", h))));
+    tab.appendChild(el("tr", {}, ["Stufe", "Name", "Zeit", "Punkte"].map((h) => text("th", "", h))));
     zeilen.forEach(({ l, liste }) => {
       const b = liste[0];
-      tab.appendChild(el("tr", {}, [text("td", "", l.name), text("td", "nowrap", zeitText(b.ms).replace(" min", "")), text("td", "nowrap", `${punkteText2(b.p)}/${g}`), text("td", "nowrap", kurzDatum(b.d))]));
+      tab.appendChild(el("tr", {}, [text("td", "", l.name), text("td", "besten-name", b.n || "–"), text("td", "nowrap", zeitText(b.ms).replace(" min", "")), text("td", "nowrap", `${punkteText2(b.p)}/${g}`)]));
     });
     box.appendChild(tab);
     zeilen.forEach(({ l, liste }) => {
       const d = el("details", { class: "besten-details" });
       d.appendChild(el("summary", {}, [document.createTextNode(`${l.name}: Top ${Math.min(5, liste.length)} von ${liste.length} ${liste.length === 1 ? "Serie" : "Serien"}`)]));
       const ol = el("ol", {});
-      liste.slice(0, 5).forEach((e) => ol.appendChild(text("li", "", `${zeitText(e.ms)} · ${punkteText2(e.p)}/${g} Punkte · ${e.d.split("-").reverse().join(".")}`)));
+      liste.slice(0, 5).forEach((e) => ol.appendChild(text("li", "", `${e.n ? e.n + ": " : ""}${zeitText(e.ms)} · ${punkteText2(e.p)}/${g} Punkte · ${kurzDatum(e.d)}`)));
       d.appendChild(ol); box.appendChild(d);
     });
     return box;
@@ -9133,10 +9144,13 @@ const KLAUSUR_PROBLEMS = [
           const mm = /^([a-z_]+)-(\d+)$/.exec(stufe);
           if (!mm || !Array.isArray(liste) || liste.length > 200) return { fehler: "Ungültige Zeitmessungen." };
           if (!ML.TOPICS[mm[1]] || !ML.TOPICS[mm[1]].levels.some((l) => l.id === +mm[2])) continue;
-          for (const e of liste) if (!e || ![5, 10].includes(e.g) || !ganz(e.ms, 0, 864e5) || typeof e.p !== "number" || e.p < 0 || e.p > e.g || (e.p * 2) % 1 || !/^\d{4}-\d{2}-\d{2}$/.test(String(e.d))) return { fehler: `Ungültige Zeitmessung bei „${stufe}“.` };
-          z[stufe] = liste.map((e) => ({ g: e.g, ms: e.ms, p: e.p, d: e.d }));
+          for (const e of liste) if (!e || (e.n !== undefined && (typeof e.n !== "string" || e.n.length > 30)) || ![5, 10].includes(e.g) || !ganz(e.ms, 0, 864e5) || typeof e.p !== "number" || e.p < 0 || e.p > e.g || (e.p * 2) % 1 || !/^\d{4}-\d{2}-\d{2}$/.test(String(e.d))) return { fehler: `Ungültige Zeitmessung bei „${stufe}“.` };
+          z[stufe] = liste.map((e) => Object.assign({ g: e.g, ms: e.ms, p: e.p, d: e.d }, e.n ? { n: e.n } : {}));
         }
         rein[k] = z;
+      } else if (k === "__spieler") {
+        if (typeof v.name !== "string" || v.name.length > 30) return { fehler: "Ungültiger Name in der Sicherung." };
+        rein[k] = { name: v.name };
       } else if (k === "__serie") {
         rein[k] = { g: v.g === 10 ? 10 : 5 };
       }
