@@ -481,7 +481,7 @@
     if (Math.random() < 0.5) return { topic: "brueche", level: 5, subtype: "zuUnecht", prompt: gemTex(g, n, d), promptText: `${g} ${n}/${d}`,
       question: `\\text{Schreibe als unechten Bruch.}`, numFields: 1, fieldLabels: ["unechter Bruch"], answer: [fr(g * d + n, d)], data: { g, n, d } };
     return { topic: "brueche", level: 5, subtype: "zuGemischt", prompt: `\\dfrac{${g * d + n}}{${d}}`, promptText: `${g * d + n}/${d}`,
-      question: `\\text{Schreibe als gemischte Zahl.}`, numFields: 2, fieldLabels: ["Ganze", "Bruchteil"], answer: [g, fr(n, d)], data: { g, n, d } };
+      question: `\\text{Schreibe als gemischte Zahl.}`, numFields: 2, fieldLabels: ["Ganze", "Bruchteil"], eingabeForm: [0, 1], answer: [g, fr(n, d)], data: { g, n, d } };
   }
   function steps_brueche_5(task) {
     const { g, n, d } = task.data;
@@ -750,7 +750,7 @@
     const liste = Array.from({ length: g }, () => ({ n, farben: gefaerbt(n, n), gr: 90 })).concat([{ n, farben: gefaerbt(n, k), gr: 90 }]);
     return { topic: "brueche", level: 10, subtype: sub, prompt: T("Alle Torten sind gleich groß. Wie viele Torten sind blau gefärbt?"), promptText: `gemischt ${g} ${k}/${n}`,
       graph: tortenReihe(liste, 3), question: T("Gib die Anzahl als gemischte Zahl und als unechten Bruch an."), numFields: 3, perFieldType: ["text", "text", "text"],
-      fieldLabels: ["ganze Torten", "Bruchteil der letzten Torte", "als unechter Bruch"], answer: [g, { num: k, den: n }, { num: g * n + k, den: n }], data: { g, n, k } };
+      fieldLabels: ["ganze Torten", "Bruchteil der letzten Torte", "als unechter Bruch"], eingabeForm: [0, 1, "=", 2], answer: [g, { num: k, den: n }, { num: g * n + k, den: n }], data: { g, n, k } };
   }
   function check_brueche_10(task, inp) {
     const err = [];

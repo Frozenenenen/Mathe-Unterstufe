@@ -173,6 +173,23 @@
   @media (max-width: 520px) { .task-prompt.text-task { font-size: 1.02rem; } }
   button.choice-btn { max-width: 100%; }
   .field-msg.field-tipp { color: var(--warn-border); font-weight: 600; }
+  /* Schreibform: Felder direkt im Ausdruck (Basis/Exponent, gemischte Zahl, Terme, Punkte) */
+  .formel-eingabe { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 3px; font-size: 1.15rem; padding-top: 14px; }
+  .formel-eingabe .fe-text { white-space: nowrap; }
+  .formel-eingabe .num-input-wrap { display: inline-flex; flex-wrap: nowrap; gap: 2px; align-items: center; }
+  .formel-eingabe .num-input-wrap .num-in { flex: none; }
+  .field-row .formel-eingabe input.num-in { width: 2.7em; padding: 8px 5px; text-align: right; font-size: 1.05rem; }
+  .formel-eingabe button.sign-btn { width: 24px; height: 34px; font-size: 0.95rem; padding: 0; border-radius: 7px; }
+  .formel-eingabe .fe-hoch { align-self: flex-start; margin-top: -14px; margin-left: -2px; }
+  .field-row .formel-eingabe .fe-hoch input.num-in { width: 2.4em; padding: 4px 4px; font-size: 0.85rem; text-align: left; }
+  .formel-eingabe .fe-hoch button.sign-btn { width: 20px; height: 24px; font-size: 0.8rem; }
+  .formel-eingabe .frac-input { width: 3.6em; }
+  .field-row .formel-eingabe .frac-input .frac-in { padding: 6px 5px; font-size: 1rem; text-align: left; }
+  .formel-eingabe .frac-bar { margin: 3px 2px; }
+  .formel-eingabe .fe-hoch .frac-input { width: 2.6em; }
+  .field-row .formel-eingabe .fe-hoch .frac-input .frac-in { padding: 3px 4px; font-size: 0.8rem; }
+  .formel-eingabe .frac-hint { display: none; }
+  .formel-msgs .frac-hint { margin-top: 6px; }
   .field-msg.field-tipp::before { content: "💡 "; }
   .steps-box.tipp-box { border-style: dashed; }
   .tile-mark { font-size: 0.8rem; font-weight: 700; margin-top: 6px; }
@@ -2445,10 +2462,10 @@ const KLAUSUR_PROBLEMS = [
         topic: "potenzrechnung", level: 5, subtype, v,
         prompt: `${c1}${v}^{${m}}\\cdot ${c2}${v}^{${n}}`,
         promptText: `${c1}${v}^${m} · ${c2}${v}^${n}`,
-        question: `\\text{Vereinfache: Koeffizient und Exponent}`,
-        questionText: `Vereinfache: Koeffizient und Exponent`,
+        question: `\\text{Vereinfache so weit wie möglich.}`,
+        questionText: `Vereinfache so weit wie möglich.`,
         numFields: 2,
-        fieldLabels: ["Koeffizient", "Exponent"],
+        fieldLabels: ["Koeffizient", "Exponent"], eingabeForm: [0, v, { h: 1 }],
         answer: [c1 * c2, m + n],
         data: { c1, c2, m, n, v }
       };
@@ -2462,10 +2479,10 @@ const KLAUSUR_PROBLEMS = [
         topic: "potenzrechnung", level: 5, subtype, v,
         prompt: `${c1}${v}^{${m}} : ${c2}${v}^{${n}}`,
         promptText: `${c1}${v}^${m} : ${c2}${v}^${n}`,
-        question: `\\text{Vereinfache: Koeffizient und Exponent}`,
-        questionText: `Vereinfache: Koeffizient und Exponent`,
+        question: `\\text{Vereinfache so weit wie möglich.}`,
+        questionText: `Vereinfache so weit wie möglich.`,
         numFields: 2,
-        fieldLabels: ["Koeffizient", "Exponent"],
+        fieldLabels: ["Koeffizient", "Exponent"], eingabeForm: [0, v, { h: 1 }],
         answer: [c1 / c2, m - n],
         data: { c1, c2, m, n, v }
       };
@@ -2477,10 +2494,10 @@ const KLAUSUR_PROBLEMS = [
         topic: "potenzrechnung", level: 5, subtype, v,
         prompt: `(${c}${v}^{${m}})^{${n}}`,
         promptText: `(${c}${v}^${m})^${n}`,
-        question: `\\text{Vereinfache: Koeffizient und Exponent}`,
-        questionText: `Vereinfache: Koeffizient und Exponent`,
+        question: `\\text{Vereinfache so weit wie möglich.}`,
+        questionText: `Vereinfache so weit wie möglich.`,
         numFields: 2,
-        fieldLabels: ["Koeffizient", "Exponent"],
+        fieldLabels: ["Koeffizient", "Exponent"], eingabeForm: [0, v, { h: 1 }],
         answer: [Math.pow(c, n), m * n],
         data: { c, m, n, v }
       };
@@ -2490,10 +2507,10 @@ const KLAUSUR_PROBLEMS = [
         topic: "potenzrechnung", level: 5, subtype,
         prompt: `x^{${a}}y^{${b}}\\cdot x^{${c}}y^{${d}}`,
         promptText: `x^${a}y^${b} · x^${c}y^${d}`,
-        question: `\\text{Vereinfache: beide Exponenten}`,
-        questionText: `Vereinfache: beide Exponenten`,
+        question: `\\text{Vereinfache so weit wie möglich.}`,
+        questionText: `Vereinfache so weit wie möglich.`,
         numFields: 2,
-        fieldLabels: ["Exponent von x", "Exponent von y"],
+        fieldLabels: ["Exponent von x", "Exponent von y"], eingabeForm: ["x", { h: 0 }, "y", { h: 1 }],
         answer: [a + c, b + d],
         data: { a, b, c, d }
       };
@@ -2700,12 +2717,18 @@ const KLAUSUR_PROBLEMS = [
   function gen_potenz_8() {
     const p = KLAUSUR_PROBLEMS[_klausurIndex % KLAUSUR_PROBLEMS.length];
     _klausurIndex++;
+    // Schreibform aus den Feldern ableiten: Koeffizient vorne, Exponenten hochgestellt an den Variablen
+    const lab = p.fieldLabels, vars = p.vars || [];
+    let form = null, frage = p.question;
+    if (lab[0] === "Koeffizient" && vars.length === lab.length - 1) { form = [0]; vars.forEach((v, i) => form.push(v, { h: i + 1 })); }
+    else if (lab.length === 1 && vars.length === 1 && /\^\{\\;\?\}/.test(p.question)) { form = ["= " + vars[0], { h: 0 }]; frage = ""; }
     return {
       topic: "potenzrechnung", level: 8,
       prompt: p.prompt,
       promptText: p.prompt,
-      question: p.question,
-      questionText: p.question,
+      question: frage,
+      questionText: frage,
+      eingabeForm: form,
       numFields: p.answer.length,
       fieldLabels: p.fieldLabels,
       answer: p.answer,
@@ -2859,7 +2882,7 @@ const KLAUSUR_PROBLEMS = [
     if (sub === "zuWiss" || sub === "zurueck") {
       const e = choice([-7, -6, -5, -4, -3, -2, 3, 4, 5, 6, 7, 8]);
       if (sub === "zuWiss") return { topic: "potenzrechnung", level: 10, subtype: sub, signed: true, prompt: dezStr(m, e), promptText: "wiss",
-        question: `\\text{Schreibe in wissenschaftlicher Schreibweise:}\\;\\; a\\cdot 10^{n}\\;\\; (1 \\leq a < 10)`, numFields: 2, fieldLabels: ["a", "n"], answer: [m, e], data: { m, e } };
+        question: `\\text{Schreibe in wissenschaftlicher Schreibweise}\\;\\; (1 \\leq a < 10).`, numFields: 2, fieldLabels: ["a", "n"], eingabeForm: [0, "\\cdot 10", { h: 1 }], answer: [m, e], data: { m, e } };
       return { topic: "potenzrechnung", level: 10, subtype: sub, signed: true, prompt: `${fmtNum(m)}\\cdot 10^{${e}}`, promptText: "zurück",
         question: `\\text{Schreibe als Dezimalzahl.}`, numFields: 1, fieldLabels: ["Dezimalzahl"], answer: [Number((m * Math.pow(10, e)).toPrecision(12))], data: { m, e } };
     }
@@ -2867,7 +2890,7 @@ const KLAUSUR_PROBLEMS = [
       const [vs, ve, vname] = choice(VORSAETZE), einheit = choice([["m", "Meter"], ["g", "Gramm"], ["W", "Watt"]]), zahl = choice([2, 3, 5, 12, 25, 45, 250, 640]);
       const exp10 = Math.floor(Math.log10(zahl)), a = zahl / Math.pow(10, exp10), n = exp10 + ve;
       return { topic: "potenzrechnung", level: 10, subtype: sub, signed: true, prompt: T(`${zahl} ${vs}${einheit[0]}`), promptText: "Einheit",
-        question: `\\text{Schreibe in ${einheit[1]} (${einheit[0]}) in wissenschaftlicher Schreibweise.}`, numFields: 2, fieldLabels: ["a", "n"], answer: [a, n], data: { zahl, vs, ve, vname, a, n } };
+        question: `\\text{Schreibe in ${einheit[1]} (${einheit[0]}) in wissenschaftlicher Schreibweise.}`, numFields: 2, fieldLabels: ["a", "n"], eingabeForm: [0, "\\cdot 10", { h: 1 }], answer: [a, n], data: { zahl, vs, ve, vname, a, n } };
     }
     const m1 = choice([2, 3, 4, 5, 6, 8]), m2 = choice([2, 3, 4, 5, 1.5, 2.5]), e1 = randInt(-6, 8), e2 = randInt(-6, 8), op = choice(["mal", "durch"]);
     let a = op === "mal" ? m1 * m2 : m1 / m2, n = op === "mal" ? e1 + e2 : e1 - e2;
@@ -2875,7 +2898,7 @@ const KLAUSUR_PROBLEMS = [
     a = Number(a.toPrecision(10));
     if (String(a).split(".")[1] && String(a).split(".")[1].length > 3) return gen_potenz_10();
     return { topic: "potenzrechnung", level: 10, subtype: sub, signed: true, prompt: `(${fmtNum(m1)}\\cdot 10^{${e1}}) ${op === "mal" ? "\\cdot" : ":"} (${fmtNum(m2)}\\cdot 10^{${e2}})`, promptText: "rechnen",
-      question: `\\text{Berechne. Ergebnis in wissenschaftlicher Schreibweise.}`, numFields: 2, fieldLabels: ["a", "n"], answer: [a, n], data: { m1, m2, e1, e2, op } };
+      question: `\\text{Berechne. Ergebnis in wissenschaftlicher Schreibweise.}`, numFields: 2, fieldLabels: ["a", "n"], eingabeForm: [0, "\\cdot 10", { h: 1 }], answer: [a, n], data: { m1, m2, e1, e2, op } };
   }
   function check_potenz_10(task, inp) { const err = []; task.answer.forEach((x, i) => { const v = parseUserNumber(inp[i]); if (isNaN(v) || Math.abs(v - x) > 1e-9 * Math.max(1, Math.abs(x))) err.push(i); }); return { correct: !err.length, fieldErrors: err }; }
   function steps_potenz_10(task) {
@@ -2903,16 +2926,16 @@ const KLAUSUR_PROBLEMS = [
       const k = ks.reduce((s, x, i) => s + vz[i] * x, 0);
       const term = ks.map((x, i) => `${i === 0 ? "" : vz[i] > 0 ? " + " : " - "}${x === 1 ? "" : x}${v}^{${n}}`).join("");
       return { topic: "potenzrechnung", level: 11, subtype: sub, signed: true, prompt: term, promptText: "zusammenfassen",
-        question: `\\text{Fasse zusammen:}\\;\\; \\;?\\,${v}^{\\;?}`, numFields: 2, fieldLabels: ["Zahl davor", "Exponent"], answer: [k, n], data: { ks, vz, n } };
+        question: `\\text{Fasse zusammen.}`, numFields: 2, fieldLabels: ["Zahl davor", "Exponent"], eingabeForm: [0, v, { h: 1 }], answer: [k, n], data: { ks, vz, n } };
     }
     if (sub === "teilweise") {
       const r = choice([2, 3, 5, 6, 7]), q = randInt(2, 6);
       return { topic: "potenzrechnung", level: 11, subtype: sub, prompt: `\\sqrt{${q * q * r}}`, promptText: "teilweise",
-        question: `\\text{Ziehe teilweise die Wurzel:}\\;\\; a\\sqrt{b}\\;\\; ${T("(b so klein wie möglich)")}`, numFields: 2, fieldLabels: ["a", "b"], answer: [q, r], data: { q, r } };
+        question: `${T("Ziehe teilweise die Wurzel (unter der Wurzel so klein wie möglich).")}`, numFields: 2, fieldLabels: ["Zahl vor der Wurzel", "Zahl unter der Wurzel"], eingabeForm: [0, "√", 1], answer: [q, r], data: { q, r } };
     }
     const r = choice([2, 3, 5]), [q1, q2] = [randInt(2, 4), randInt(2, 5)], vz = choice([1, -1]);
     return { topic: "potenzrechnung", level: 11, subtype: "wurzelAdd", signed: true, prompt: `\\sqrt{${q1 * q1 * r}} ${vz > 0 ? "+" : "-"} \\sqrt{${q2 * q2 * r}}`, promptText: "Wurzeln addieren",
-      question: `\\text{Vereinfache:}\\;\\; \\;?\\,\\sqrt{${r}}`, numFields: 1, fieldLabels: [`Zahl vor √${r}`], answer: [q1 + vz * q2], data: { q1, q2, r, vz } };
+      question: `\\text{Vereinfache.}`, numFields: 1, fieldLabels: [`Zahl vor √${r}`], eingabeForm: [0, `\\sqrt{${r}}`], answer: [q1 + vz * q2], data: { q1, q2, r, vz } };
   }
   function steps_potenz_11(task) {
     const d = task.data, s = task.subtype;
@@ -3518,7 +3541,7 @@ const KLAUSUR_PROBLEMS = [
     }
     const m0 = choice([50, 100, 120, 200]), q = Math.pow(0.5, 1 / TH);
     return { topic: "exponentialrechnung", level: 7, subtype: sub, prompt: T(`${stoffDat} sind zu Beginn ${m0} mg vorhanden, die Halbwertszeit beträgt ${TH} ${einheit}. Die Menge soll mit f(t) = a · qᵗ beschrieben werden (t in ${einheitDat}).`), promptText: "Term",
-      question: T("Bestimme a und q (q auf 4 Nachkommastellen)."), numFields: 2, fieldLabels: ["a", "q"], answer: [m0, roundKfm(q, 4)], tolerances: [1e-9, 0.00011], data: { m0, TH } };
+      question: T("Bestimme a und q (q auf 4 Nachkommastellen)."), numFields: 2, fieldLabels: ["a", "q"], eingabeForm: ["f(t) =", 0, "\\cdot", 1, "^{t}"], answer: [m0, roundKfm(q, 4)], tolerances: [1e-9, 0.00011], data: { m0, TH } };
   }
   function check_expo_7(task, inp) { const err = []; task.answer.forEach((x, i) => { const v = parseUserNumber(inp[i]); const tol = task.tolerances ? task.tolerances[i] : task.tolerance; if (isNaN(v) || Math.abs(v - x) > tol) err.push(i); }); return { correct: !err.length, fieldErrors: err }; }
   function steps_expo_7(task) {
@@ -3769,10 +3792,10 @@ const KLAUSUR_PROBLEMS = [
       topic: "lineare_funktionen", level: 2,
       prompt: `P(${x1}\\,|\\,${y1})\\,, \\; Q(${x2}\\,|\\,${y2})`,
       promptText: `P(${x1}|${y1}), Q(${x2}|${y2})`,
-      question: `y = \\;?\\,x + \\;?`,
+      question: `\\text{Bestimme die Geradengleichung.}`,
       questionText: `Geradengleichung y = mx + b`,
       numFields: 2,
-      fieldLabels: ["m", "b"],
+      fieldLabels: ["m", "b"], eingabeForm: ["y =", 0, "x +", 1],
       answer: [m, b],
       data: { m, b, x1, y1, x2, y2 }
     };
@@ -3848,10 +3871,10 @@ const KLAUSUR_PROBLEMS = [
       topic: "lineare_funktionen", level: 4,
       prompt: `f(x) = ${coefX(m1)} ${b1 >= 0 ? "+" : "-"} ${Math.abs(b1)}\\,, \\quad g(x) = ${coefX(m2)} ${b2 >= 0 ? "+" : "-"} ${Math.abs(b2)}`,
       promptText: `f(x)=${coefX(m1)}${b1 >= 0 ? "+" : ""}${b1}, g(x)=${coefX(m2)}${b2 >= 0 ? "+" : ""}${b2}`,
-      question: `\\text{Schnittpunkt } S(\\;?\\,|\\,\\;?)`,
+      question: `\\text{Bestimme den Schnittpunkt.}`,
       questionText: `Schnittpunkt S(x|y)`,
       numFields: 2,
-      fieldLabels: ["x", "y"],
+      fieldLabels: ["x", "y"], eingabeForm: ["S(", 0, "|", 1, ")"],
       answer: [xT, yT],
       data: { m1, m2, b1, b2, xT, yT }
     };
@@ -4795,7 +4818,7 @@ const KLAUSUR_PROBLEMS = [
     if (Math.random() < 0.5) return { topic: "brueche", level: 5, subtype: "zuUnecht", prompt: gemTex(g, n, d), promptText: `${g} ${n}/${d}`,
       question: `\\text{Schreibe als unechten Bruch.}`, numFields: 1, fieldLabels: ["unechter Bruch"], answer: [fr(g * d + n, d)], data: { g, n, d } };
     return { topic: "brueche", level: 5, subtype: "zuGemischt", prompt: `\\dfrac{${g * d + n}}{${d}}`, promptText: `${g * d + n}/${d}`,
-      question: `\\text{Schreibe als gemischte Zahl.}`, numFields: 2, fieldLabels: ["Ganze", "Bruchteil"], answer: [g, fr(n, d)], data: { g, n, d } };
+      question: `\\text{Schreibe als gemischte Zahl.}`, numFields: 2, fieldLabels: ["Ganze", "Bruchteil"], eingabeForm: [0, 1], answer: [g, fr(n, d)], data: { g, n, d } };
   }
   function steps_brueche_5(task) {
     const { g, n, d } = task.data;
@@ -5064,7 +5087,7 @@ const KLAUSUR_PROBLEMS = [
     const liste = Array.from({ length: g }, () => ({ n, farben: gefaerbt(n, n), gr: 90 })).concat([{ n, farben: gefaerbt(n, k), gr: 90 }]);
     return { topic: "brueche", level: 10, subtype: sub, prompt: T("Alle Torten sind gleich groß. Wie viele Torten sind blau gefärbt?"), promptText: `gemischt ${g} ${k}/${n}`,
       graph: tortenReihe(liste, 3), question: T("Gib die Anzahl als gemischte Zahl und als unechten Bruch an."), numFields: 3, perFieldType: ["text", "text", "text"],
-      fieldLabels: ["ganze Torten", "Bruchteil der letzten Torte", "als unechter Bruch"], answer: [g, { num: k, den: n }, { num: g * n + k, den: n }], data: { g, n, k } };
+      fieldLabels: ["ganze Torten", "Bruchteil der letzten Torte", "als unechter Bruch"], eingabeForm: [0, 1, "=", 2], answer: [g, { num: k, den: n }, { num: g * n + k, den: n }], data: { g, n, k } };
   }
   function check_brueche_10(task, inp) {
     const err = [];
@@ -5377,8 +5400,8 @@ const KLAUSUR_PROBLEMS = [
     return {
       topic: "quadratische_funktionen", level: 1, signed: true,
       prompt: scheitelTex(an, ad, d, e), promptText: `f(x) = a(x-${d})^2+${e}`,
-      question: `\\text{Scheitelpunkt } S(\\;?\\,|\\,\\;?)\\text{ – Hoch- oder Tiefpunkt?}`,
-      numFields: 3, fieldLabels: ["x-Koordinate von S", "y-Koordinate von S", "Art des Scheitelpunkts"],
+      question: `\\text{Bestimme den Scheitelpunkt. Ist er Hoch- oder Tiefpunkt?}`,
+      numFields: 3, fieldLabels: ["x-Koordinate von S", "y-Koordinate von S", "Art des Scheitelpunkts"], eingabeForm: ["S(", 0, "|", 1, ")"],
       perFieldType: ["text", "text", "choice"], fieldChoices: [null, null, ["Hochpunkt", "Tiefpunkt"]],
       answer: [d, e, art], data: { an, ad, a, d, e }
     };
@@ -5413,7 +5436,7 @@ const KLAUSUR_PROBLEMS = [
       while (!Number.isInteger(b) || !Number.isInteger(c) || b === 0 || Math.abs(c) > 60);
       return { topic: "quadratische_funktionen", level: 2, subtype: "allgemein", signed: true,
         prompt: `f(x) = ${polyTex(an, ad, b, c)}`, promptText: "allgemein", question: `\\text{Bestimme den Scheitelpunkt (quadratische Ergänzung)}`,
-        numFields: 2, fieldLabels: ["x-Koordinate von S", "y-Koordinate von S"], answer: [d, e], data: { an, ad, b, c, d, e } };
+        numFields: 2, fieldLabels: ["x-Koordinate von S", "y-Koordinate von S"], eingabeForm: ["S(", 0, "|", 1, ")"], answer: [d, e], data: { an, ad, b, c, d, e } };
     }
     let p; do { p = 2 * randInt(-5, 5); } while (p === 0);
     const q = randInt(-10, 10), d = -p / 2, e = q - (p / 2) * (p / 2);
@@ -5421,7 +5444,7 @@ const KLAUSUR_PROBLEMS = [
       topic: "quadratische_funktionen", level: 2, signed: true,
       prompt: `f(x) = ${normalTex(p, q)}`, promptText: `f(x) = x^2+${p}x+${q}`,
       question: `\\text{Bestimme den Scheitelpunkt (quadratische Ergänzung)}`,
-      numFields: 2, fieldLabels: ["x-Koordinate von S", "y-Koordinate von S"], answer: [d, e], data: { p, q, d, e }
+      numFields: 2, fieldLabels: ["x-Koordinate von S", "y-Koordinate von S"], eingabeForm: ["S(", 0, "|", 1, ")"], answer: [d, e], data: { p, q, d, e }
     };
   }
   function check_quad_2(task, inp) {
@@ -7093,7 +7116,7 @@ const KLAUSUR_PROBLEMS = [
     const a = glieder.filter((g) => g.x).reduce((s, g) => s + g.k, 0), b = glieder.filter((g) => !g.x).reduce((s, g) => s + g.k, 0);
     return {
       topic: "terme_gleichungen", level: 1, prompt: gliederTex(glieder), promptText: gliederTex(glieder),
-      question: `\\text{Fasse zusammen:}\\;\\; \\;?\\,x + \\;?`, numFields: 2, fieldLabels: ["Zahl vor x", "Zahl ohne x"],
+      question: `\\text{Fasse zusammen.}`, numFields: 2, fieldLabels: ["Zahl vor x", "Zahl ohne x"], eingabeForm: [0, "x +", 1],
       answer: [a, b], data: { glieder, a, b }
     };
   }
@@ -7112,7 +7135,7 @@ const KLAUSUR_PROBLEMS = [
     if (Math.random() < 0.3) { // a − [x + b − (c + y) − d]  (Vorbild: echte Klassenarbeit)
       const a = randInt(2, 12), b = randInt(1, 9), c = randInt(1, 9), d = randInt(1, 9);
       return { topic: "terme_gleichungen", level: 2, subtype: "verschachtelt", signed: true, prompt: `${a} - [x + ${b} - (${c} + y) - ${d}]`, promptText: "verschachtelt",
-        question: `\\text{Löse die Klammern auf:}\\;\\; \\;?\\,x + \\;?\\,y + \\;?`, numFields: 3, fieldLabels: ["Zahl vor x", "Zahl vor y", "Zahl ohne Variable"],
+        question: `\\text{Löse die Klammern auf.}`, numFields: 3, fieldLabels: ["Zahl vor x", "Zahl vor y", "Zahl ohne Variable"], eingabeForm: [0, "x +", 1, "y +", 2],
         answer: [-1, 1, a - b + c + d], data: { a, b, c, d } };
     }
     const p = nz(-6, 6), b = nz(-5, 5), c = nz(-9, 9), d = nz(-6, 6), e = nz(-5, 5), f = nz(-9, 9);
@@ -7120,7 +7143,7 @@ const KLAUSUR_PROBLEMS = [
     const t1 = `${fak(p)}${kl(b, c)}`, t2 = `${d < 0 ? " - " : " + "}${fak(Math.abs(d))}${kl(e, f)}`;
     return {
       topic: "terme_gleichungen", level: 2, signed: true, prompt: t1 + t2, promptText: t1 + t2,
-      question: `\\text{Löse die Klammern auf und fasse zusammen:}\\;\\; \\;?\\,x + \\;?`, numFields: 2, fieldLabels: ["Zahl vor x", "Zahl ohne x"],
+      question: `\\text{Löse die Klammern auf und fasse zusammen.}`, numFields: 2, fieldLabels: ["Zahl vor x", "Zahl ohne x"], eingabeForm: [0, "x +", 1],
       answer: [A, B], data: { p, b, c, d, e, f, A, B }
     };
   }
@@ -7189,7 +7212,7 @@ const KLAUSUR_PROBLEMS = [
     if (sub === "zweiVar") { // (12 + 5m)²
       const c = randInt(2, 12), k = randInt(2, 6), v = choice(["m", "a", "b", "y"]), mi = Math.random() < 0.5;
       return { topic: "terme_gleichungen", level: 5, subtype: sub, signed: true, prompt: `(${c} ${mi ? "-" : "+"} ${k}${v})^{2}`, promptText: "binom2",
-        question: `\\text{Multipliziere aus:}\\;\\; \\;? + \\;?\\,${v} + \\;?\\,${v}^{2}`, numFields: 3, fieldLabels: ["Zahl ohne " + v, "Zahl vor " + v, `Zahl vor ${v}²`],
+        question: `\\text{Multipliziere aus.}`, numFields: 3, fieldLabels: ["Zahl ohne " + v, "Zahl vor " + v, `Zahl vor ${v}²`], eingabeForm: [0, "+", 1, v + " +", 2, `${v}^{2}`],
         answer: [c * c, (mi ? -2 : 2) * c * k, k * k], data: { c, k, v, mi } };
     }
     if (sub === "luecke") { // (3,5x − ?y)² = 12,25x² − ?xy + 36y²
@@ -7200,13 +7223,13 @@ const KLAUSUR_PROBLEMS = [
     if (sub === "koeff") {
       const k = randInt(2, 5), m = nz(-7, 7);
       return { topic: "terme_gleichungen", level: 5, subtype: sub, signed: true, prompt: `(${k}x ${m > 0 ? "+" : "-"} ${Math.abs(m)})^{2}`, promptText: "binomisch",
-        question: `\\text{Multipliziere aus:}\\;\\; \\;?\\,x^{2} + \\;?\\,x + \\;?`, numFields: 3, fieldLabels: ["Zahl vor x²", "Zahl vor x", "Zahl ohne x"],
+        question: `\\text{Multipliziere aus.}`, numFields: 3, fieldLabels: ["Zahl vor x²", "Zahl vor x", "Zahl ohne x"], eingabeForm: [0, "x^{2} +", 1, "x +", 2],
         answer: [k * k, 2 * k * m, m * m], data: { k, m } };
     }
     const p = sub === "plus" ? 2 * a : sub === "minus" ? -2 * a : 0, q = sub === "dritte" ? -a * a : a * a;
     const pr = sub === "plus" ? `(x + ${a})^{2}` : sub === "minus" ? `(x - ${a})^{2}` : `(x + ${a})(x - ${a})`;
     return { topic: "terme_gleichungen", level: 5, subtype: sub, signed: true, prompt: pr, promptText: pr,
-      question: `\\text{Multipliziere aus:}\\;\\; x^{2} + \\;?\\,x + \\;?`, numFields: 2, fieldLabels: ["Zahl vor x", "Zahl ohne x"], answer: [p, q], data: { a } };
+      question: `\\text{Multipliziere aus.}`, numFields: 2, fieldLabels: ["Zahl vor x", "Zahl ohne x"], eingabeForm: ["x^{2} +", 0, "x +", 1], answer: [p, q], data: { a } };
   }
   function steps_term_5(task) {
     const s = task.subtype;
@@ -7230,7 +7253,7 @@ const KLAUSUR_PROBLEMS = [
       let a, b; do { a = nz(-9, 9); b = nz(-9, 9); } while (gcd(a, b) !== 1 || a < 0);
       const k = randInt(2, 9);
       return { topic: "terme_gleichungen", level: 6, subtype: sub, signed: true, prompt: linTerm(k * a, k * b), promptText: "ausklammern",
-        question: `\\text{Klammere die größte gemeinsame Zahl aus:}\\;\\; \\;?\\,(\\;?\\,x + \\;?)`, numFields: 3, fieldLabels: ["Zahl vor der Klammer", "Zahl vor x in der Klammer", "Zahl ohne x in der Klammer"],
+        question: `\\text{Klammere die größte gemeinsame Zahl aus.}`, numFields: 3, fieldLabels: ["Zahl vor der Klammer", "Zahl vor x in der Klammer", "Zahl ohne x in der Klammer"], eingabeForm: [0, "(", 1, "x +", 2, ")"],
         answer: [k, a, b], data: { k, a, b } };
     }
     const a = nz(-9, 9);
@@ -7335,7 +7358,7 @@ const KLAUSUR_PROBLEMS = [
       const [satz, a, b, ops] = choice(vorlagen);
       const af = typeof a === "object" ? a : { num: a, den: 1 };
       return { topic: "terme_gleichungen", level: 9, subtype: "text", signed: true,
-        prompt: T(`„${satz}“`), promptText: satz, question: `\\text{Schreibe als Term in der Form}\\;\\; \\;?\\,\\cdot x + \\;?`,
+        prompt: T(`„${satz}“`), promptText: satz, question: `\\text{Schreibe als Term.}`, eingabeForm: [0, "\\cdot x +", 1],
         numFields: 2, fieldLabels: ["Zahl vor x (auch als Bruch)", "Zahl ohne x"], answer: [af, { num: b, den: 1 }], data: { satz, ops } };
     }
     if (sub === "tabelle") {
@@ -9197,8 +9220,20 @@ const KLAUSUR_PROBLEMS = [
       });
       card.appendChild(grid);
     } else {
+      // Schreibform: Felder direkt im Ausdruck, z. B. [0, "x", { h: 1 }] = ▢x^▢ (Basis rechtsbündig, Exponent hochgestellt
+      // und linksbündig) oder [0, 1] = gemischte Zahl. Strings sind TeX-Text, Zahlen normale Felder, { h: i } hochgestellte Felder.
+      const form = Array.isArray(task.eingabeForm) ? task.eingabeForm : null;
+      const formIdx = new Map(); // Feldnummer -> "normal" | "hoch"
+      if (form) form.forEach((t) => { if (typeof t === "number") formIdx.set(t, "normal"); else if (t && typeof t === "object" && typeof t.h === "number") formIdx.set(t.h, "hoch"); });
+      const formTeile = {}; // Feldnummer -> { wrap, msg }
+      let formZeile = null, formMsgs = null;
       for (let idx = 0; idx < task.numFields; idx++) {
         const fieldId = prefix + idx;
+        const imForm = formIdx.has(idx);
+        if (imForm && !formZeile) { // Platzhalter an der Stelle des ersten Formfelds, wird nach der Schleife gefüllt
+          formZeile = el("div", { class: "formel-eingabe" }); formMsgs = el("div", { class: "formel-msgs" });
+          card.appendChild(el("div", { class: "field-row formel-row" }, [formZeile, formMsgs]));
+        }
         const label = (task.fieldLabels && task.fieldLabels[idx]) || `Feld ${idx + 1}`;
         // Effektiver Feldtyp: perFieldType (gemischte Aufgaben) hat Vorrang,
         // sonst der einheitliche task.fieldType (z.B. "choice" für Spiel 1),
@@ -9251,8 +9286,8 @@ const KLAUSUR_PROBLEMS = [
           };
           let parts;
           if (isFraction) {
-            const zIn = mkInput("frac-in", "Zähler", label + " (Zähler)");
-            const nIn = mkInput("frac-in", "Nenner", label + " (Nenner)");
+            const zIn = mkInput("frac-in", imForm ? "" : "Zähler", label + " (Zähler)");
+            const nIn = mkInput("frac-in", imForm ? "" : "Nenner", label + " (Nenner)");
             const fracBox = el("div", { class: "frac-input" }, [zIn, el("div", { class: "frac-bar" }), nIn]);
             parts = [zIn, nIn];
             if (signBtn) wrap.appendChild(signBtn);
@@ -9288,6 +9323,15 @@ const KLAUSUR_PROBLEMS = [
           if (signBtn) signBtn.addEventListener("click", () => { negative = !negative; sync(); });
           hidden._visual = parts;
           hidden._signBtn = signBtn;
+          if (imForm) {
+            wrap.classList.add(formIdx.get(idx) === "hoch" ? "fe-hoch" : "fe-normal");
+            if (isFraction) wrap.classList.add("fe-bruch");
+            wrap.appendChild(hidden);
+            const msg = el("div", { class: "field-msg", id: fieldId + "-msg" });
+            formTeile[idx] = { wrap, msg, isFraction };
+            inputs.push(hidden);
+            continue;
+          }
           row.appendChild(wrap);
           row.appendChild(hidden);
           inputs.push(hidden);
@@ -9296,6 +9340,14 @@ const KLAUSUR_PROBLEMS = [
         const msg = el("div", { class: "field-msg", id: fieldId + "-msg" });
         row.appendChild(msg);
         card.appendChild(row);
+      }
+      if (formZeile) {
+        form.forEach((t) => {
+          if (typeof t === "string") formZeile.appendChild(el("span", { class: "fe-text", html: ML.mathToHtml(t) }));
+          else { const i = typeof t === "number" ? t : t.h; if (formTeile[i]) formZeile.appendChild(formTeile[i].wrap); }
+        });
+        Object.keys(formTeile).sort((a, b) => a - b).forEach((i) => formMsgs.appendChild(formTeile[i].msg));
+        if (Object.values(formTeile).some((f) => f.isFraction)) formMsgs.appendChild(el("div", { class: "frac-hint" }, [document.createTextNode("Ganze Zahl im Bruchfeld? Nenner leer lassen.")]));
       }
     }
 

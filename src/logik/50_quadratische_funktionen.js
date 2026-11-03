@@ -24,8 +24,8 @@
     return {
       topic: "quadratische_funktionen", level: 1, signed: true,
       prompt: scheitelTex(an, ad, d, e), promptText: `f(x) = a(x-${d})^2+${e}`,
-      question: `\\text{Scheitelpunkt } S(\\;?\\,|\\,\\;?)\\text{ – Hoch- oder Tiefpunkt?}`,
-      numFields: 3, fieldLabels: ["x-Koordinate von S", "y-Koordinate von S", "Art des Scheitelpunkts"],
+      question: `\\text{Bestimme den Scheitelpunkt. Ist er Hoch- oder Tiefpunkt?}`,
+      numFields: 3, fieldLabels: ["x-Koordinate von S", "y-Koordinate von S", "Art des Scheitelpunkts"], eingabeForm: ["S(", 0, "|", 1, ")"],
       perFieldType: ["text", "text", "choice"], fieldChoices: [null, null, ["Hochpunkt", "Tiefpunkt"]],
       answer: [d, e, art], data: { an, ad, a, d, e }
     };
@@ -60,7 +60,7 @@
       while (!Number.isInteger(b) || !Number.isInteger(c) || b === 0 || Math.abs(c) > 60);
       return { topic: "quadratische_funktionen", level: 2, subtype: "allgemein", signed: true,
         prompt: `f(x) = ${polyTex(an, ad, b, c)}`, promptText: "allgemein", question: `\\text{Bestimme den Scheitelpunkt (quadratische Ergänzung)}`,
-        numFields: 2, fieldLabels: ["x-Koordinate von S", "y-Koordinate von S"], answer: [d, e], data: { an, ad, b, c, d, e } };
+        numFields: 2, fieldLabels: ["x-Koordinate von S", "y-Koordinate von S"], eingabeForm: ["S(", 0, "|", 1, ")"], answer: [d, e], data: { an, ad, b, c, d, e } };
     }
     let p; do { p = 2 * randInt(-5, 5); } while (p === 0);
     const q = randInt(-10, 10), d = -p / 2, e = q - (p / 2) * (p / 2);
@@ -68,7 +68,7 @@
       topic: "quadratische_funktionen", level: 2, signed: true,
       prompt: `f(x) = ${normalTex(p, q)}`, promptText: `f(x) = x^2+${p}x+${q}`,
       question: `\\text{Bestimme den Scheitelpunkt (quadratische Ergänzung)}`,
-      numFields: 2, fieldLabels: ["x-Koordinate von S", "y-Koordinate von S"], answer: [d, e], data: { p, q, d, e }
+      numFields: 2, fieldLabels: ["x-Koordinate von S", "y-Koordinate von S"], eingabeForm: ["S(", 0, "|", 1, ")"], answer: [d, e], data: { p, q, d, e }
     };
   }
   function check_quad_2(task, inp) {

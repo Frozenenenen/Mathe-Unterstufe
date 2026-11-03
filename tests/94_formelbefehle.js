@@ -73,3 +73,20 @@ console.log("\nPrüfe Quelltext auf einfache Backslash-Abstände (\; \\, \\! \\:
   src.forEach((z, i) => { if (/(^|[^\\])\\[;,!:]/.test(z)) fail(`logic.js Zeile ${i + 1}: einfacher Backslash vor Abstandsbefehl: ${z.trim().slice(0, 90)}`); });
   done("backslash", before, src.length);
 }
+
+// Schreibform (Felder direkt im Ausdruck): jede Feldnummer genau einmal, gültig, Texte ohne verschluckte Befehle
+console.log("\nPrüfe Schreibformen der Eingabefelder ...");
+{
+  const before = totalErrors; let n = 0;
+  for (const [tk, T] of Object.entries(ML.TOPICS)) for (const L of T.levels) for (let i = 0; i < 300; i++) {
+    const t = L.generate(); if (!t.eingabeForm) continue; n++;
+    const nr = t.eingabeForm.filter((x) => typeof x !== "string").map((x) => (typeof x === "number" ? x : x.h));
+    if (new Set(nr).size !== nr.length) fail(`${tk}/${L.id}: Feld doppelt in der Schreibform`);
+    if (nr.some((k) => !Number.isInteger(k) || k < 0 || k >= t.numFields)) fail(`${tk}/${L.id}: ungültige Feldnummer`);
+    if (t.fieldType === "choice" || t.fieldType === "select") fail(`${tk}/${L.id}: Schreibform bei Auswahlfeldern`);
+    nr.forEach((k) => { if (t.perFieldType && t.perFieldType[k] === "choice") fail(`${tk}/${L.id}: Auswahlfeld ${k} in der Schreibform`); });
+    t.eingabeForm.filter((x) => typeof x === "string").forEach((x) => { const v = visible(x); if (/\b(dfrac|frac|cdot|sqrt|text)\b|undefined|NaN/.test(v)) fail(`${tk}/${L.id}: Text „${v}“`); });
+    if (/(^|[^A-Za-zÄÖÜäöüß)])\?/.test(visible(t.question || ""))) fail(`${tk}/${L.id}: Frage enthält noch ein ?-Muster, obwohl die Felder im Ausdruck stehen`);
+  }
+  done("schreibform", before, n);
+}

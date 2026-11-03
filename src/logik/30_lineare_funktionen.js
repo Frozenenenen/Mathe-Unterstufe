@@ -57,10 +57,10 @@
       topic: "lineare_funktionen", level: 2,
       prompt: `P(${x1}\\,|\\,${y1})\\,, \\; Q(${x2}\\,|\\,${y2})`,
       promptText: `P(${x1}|${y1}), Q(${x2}|${y2})`,
-      question: `y = \\;?\\,x + \\;?`,
+      question: `\\text{Bestimme die Geradengleichung.}`,
       questionText: `Geradengleichung y = mx + b`,
       numFields: 2,
-      fieldLabels: ["m", "b"],
+      fieldLabels: ["m", "b"], eingabeForm: ["y =", 0, "x +", 1],
       answer: [m, b],
       data: { m, b, x1, y1, x2, y2 }
     };
@@ -136,10 +136,10 @@
       topic: "lineare_funktionen", level: 4,
       prompt: `f(x) = ${coefX(m1)} ${b1 >= 0 ? "+" : "-"} ${Math.abs(b1)}\\,, \\quad g(x) = ${coefX(m2)} ${b2 >= 0 ? "+" : "-"} ${Math.abs(b2)}`,
       promptText: `f(x)=${coefX(m1)}${b1 >= 0 ? "+" : ""}${b1}, g(x)=${coefX(m2)}${b2 >= 0 ? "+" : ""}${b2}`,
-      question: `\\text{Schnittpunkt } S(\\;?\\,|\\,\\;?)`,
+      question: `\\text{Bestimme den Schnittpunkt.}`,
       questionText: `Schnittpunkt S(x|y)`,
       numFields: 2,
-      fieldLabels: ["x", "y"],
+      fieldLabels: ["x", "y"], eingabeForm: ["S(", 0, "|", 1, ")"],
       answer: [xT, yT],
       data: { m1, m2, b1, b2, xT, yT }
     };

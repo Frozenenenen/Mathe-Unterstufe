@@ -28,7 +28,7 @@
     const a = glieder.filter((g) => g.x).reduce((s, g) => s + g.k, 0), b = glieder.filter((g) => !g.x).reduce((s, g) => s + g.k, 0);
     return {
       topic: "terme_gleichungen", level: 1, prompt: gliederTex(glieder), promptText: gliederTex(glieder),
-      question: `\\text{Fasse zusammen:}\\;\\; \\;?\\,x + \\;?`, numFields: 2, fieldLabels: ["Zahl vor x", "Zahl ohne x"],
+      question: `\\text{Fasse zusammen.}`, numFields: 2, fieldLabels: ["Zahl vor x", "Zahl ohne x"], eingabeForm: [0, "x +", 1],
       answer: [a, b], data: { glieder, a, b }
     };
   }
@@ -47,7 +47,7 @@
     if (Math.random() < 0.3) { // a − [x + b − (c + y) − d]  (Vorbild: echte Klassenarbeit)
       const a = randInt(2, 12), b = randInt(1, 9), c = randInt(1, 9), d = randInt(1, 9);
       return { topic: "terme_gleichungen", level: 2, subtype: "verschachtelt", signed: true, prompt: `${a} - [x + ${b} - (${c} + y) - ${d}]`, promptText: "verschachtelt",
-        question: `\\text{Löse die Klammern auf:}\\;\\; \\;?\\,x + \\;?\\,y + \\;?`, numFields: 3, fieldLabels: ["Zahl vor x", "Zahl vor y", "Zahl ohne Variable"],
+        question: `\\text{Löse die Klammern auf.}`, numFields: 3, fieldLabels: ["Zahl vor x", "Zahl vor y", "Zahl ohne Variable"], eingabeForm: [0, "x +", 1, "y +", 2],
         answer: [-1, 1, a - b + c + d], data: { a, b, c, d } };
     }
     const p = nz(-6, 6), b = nz(-5, 5), c = nz(-9, 9), d = nz(-6, 6), e = nz(-5, 5), f = nz(-9, 9);
@@ -55,7 +55,7 @@
     const t1 = `${fak(p)}${kl(b, c)}`, t2 = `${d < 0 ? " - " : " + "}${fak(Math.abs(d))}${kl(e, f)}`;
     return {
       topic: "terme_gleichungen", level: 2, signed: true, prompt: t1 + t2, promptText: t1 + t2,
-      question: `\\text{Löse die Klammern auf und fasse zusammen:}\\;\\; \\;?\\,x + \\;?`, numFields: 2, fieldLabels: ["Zahl vor x", "Zahl ohne x"],
+      question: `\\text{Löse die Klammern auf und fasse zusammen.}`, numFields: 2, fieldLabels: ["Zahl vor x", "Zahl ohne x"], eingabeForm: [0, "x +", 1],
       answer: [A, B], data: { p, b, c, d, e, f, A, B }
     };
   }
@@ -124,7 +124,7 @@
     if (sub === "zweiVar") { // (12 + 5m)²
       const c = randInt(2, 12), k = randInt(2, 6), v = choice(["m", "a", "b", "y"]), mi = Math.random() < 0.5;
       return { topic: "terme_gleichungen", level: 5, subtype: sub, signed: true, prompt: `(${c} ${mi ? "-" : "+"} ${k}${v})^{2}`, promptText: "binom2",
-        question: `\\text{Multipliziere aus:}\\;\\; \\;? + \\;?\\,${v} + \\;?\\,${v}^{2}`, numFields: 3, fieldLabels: ["Zahl ohne " + v, "Zahl vor " + v, `Zahl vor ${v}²`],
+        question: `\\text{Multipliziere aus.}`, numFields: 3, fieldLabels: ["Zahl ohne " + v, "Zahl vor " + v, `Zahl vor ${v}²`], eingabeForm: [0, "+", 1, v + " +", 2, `${v}^{2}`],
         answer: [c * c, (mi ? -2 : 2) * c * k, k * k], data: { c, k, v, mi } };
     }
     if (sub === "luecke") { // (3,5x − ?y)² = 12,25x² − ?xy + 36y²
@@ -135,13 +135,13 @@
     if (sub === "koeff") {
       const k = randInt(2, 5), m = nz(-7, 7);
       return { topic: "terme_gleichungen", level: 5, subtype: sub, signed: true, prompt: `(${k}x ${m > 0 ? "+" : "-"} ${Math.abs(m)})^{2}`, promptText: "binomisch",
-        question: `\\text{Multipliziere aus:}\\;\\; \\;?\\,x^{2} + \\;?\\,x + \\;?`, numFields: 3, fieldLabels: ["Zahl vor x²", "Zahl vor x", "Zahl ohne x"],
+        question: `\\text{Multipliziere aus.}`, numFields: 3, fieldLabels: ["Zahl vor x²", "Zahl vor x", "Zahl ohne x"], eingabeForm: [0, "x^{2} +", 1, "x +", 2],
         answer: [k * k, 2 * k * m, m * m], data: { k, m } };
     }
     const p = sub === "plus" ? 2 * a : sub === "minus" ? -2 * a : 0, q = sub === "dritte" ? -a * a : a * a;
     const pr = sub === "plus" ? `(x + ${a})^{2}` : sub === "minus" ? `(x - ${a})^{2}` : `(x + ${a})(x - ${a})`;
     return { topic: "terme_gleichungen", level: 5, subtype: sub, signed: true, prompt: pr, promptText: pr,
-      question: `\\text{Multipliziere aus:}\\;\\; x^{2} + \\;?\\,x + \\;?`, numFields: 2, fieldLabels: ["Zahl vor x", "Zahl ohne x"], answer: [p, q], data: { a } };
+      question: `\\text{Multipliziere aus.}`, numFields: 2, fieldLabels: ["Zahl vor x", "Zahl ohne x"], eingabeForm: ["x^{2} +", 0, "x +", 1], answer: [p, q], data: { a } };
   }
   function steps_term_5(task) {
     const s = task.subtype;
@@ -165,7 +165,7 @@
       let a, b; do { a = nz(-9, 9); b = nz(-9, 9); } while (gcd(a, b) !== 1 || a < 0);
       const k = randInt(2, 9);
       return { topic: "terme_gleichungen", level: 6, subtype: sub, signed: true, prompt: linTerm(k * a, k * b), promptText: "ausklammern",
-        question: `\\text{Klammere die größte gemeinsame Zahl aus:}\\;\\; \\;?\\,(\\;?\\,x + \\;?)`, numFields: 3, fieldLabels: ["Zahl vor der Klammer", "Zahl vor x in der Klammer", "Zahl ohne x in der Klammer"],
+        question: `\\text{Klammere die größte gemeinsame Zahl aus.}`, numFields: 3, fieldLabels: ["Zahl vor der Klammer", "Zahl vor x in der Klammer", "Zahl ohne x in der Klammer"], eingabeForm: [0, "(", 1, "x +", 2, ")"],
         answer: [k, a, b], data: { k, a, b } };
     }
     const a = nz(-9, 9);
@@ -270,7 +270,7 @@
       const [satz, a, b, ops] = choice(vorlagen);
       const af = typeof a === "object" ? a : { num: a, den: 1 };
       return { topic: "terme_gleichungen", level: 9, subtype: "text", signed: true,
-        prompt: T(`„${satz}“`), promptText: satz, question: `\\text{Schreibe als Term in der Form}\\;\\; \\;?\\,\\cdot x + \\;?`,
+        prompt: T(`„${satz}“`), promptText: satz, question: `\\text{Schreibe als Term.}`, eingabeForm: [0, "\\cdot x +", 1],
         numFields: 2, fieldLabels: ["Zahl vor x (auch als Bruch)", "Zahl ohne x"], answer: [af, { num: b, den: 1 }], data: { satz, ops } };
     }
     if (sub === "tabelle") {

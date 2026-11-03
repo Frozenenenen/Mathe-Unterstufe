@@ -229,10 +229,10 @@
         topic: "potenzrechnung", level: 5, subtype, v,
         prompt: `${c1}${v}^{${m}}\\cdot ${c2}${v}^{${n}}`,
         promptText: `${c1}${v}^${m} · ${c2}${v}^${n}`,
-        question: `\\text{Vereinfache: Koeffizient und Exponent}`,
-        questionText: `Vereinfache: Koeffizient und Exponent`,
+        question: `\\text{Vereinfache so weit wie möglich.}`,
+        questionText: `Vereinfache so weit wie möglich.`,
         numFields: 2,
-        fieldLabels: ["Koeffizient", "Exponent"],
+        fieldLabels: ["Koeffizient", "Exponent"], eingabeForm: [0, v, { h: 1 }],
         answer: [c1 * c2, m + n],
         data: { c1, c2, m, n, v }
       };
@@ -246,10 +246,10 @@
         topic: "potenzrechnung", level: 5, subtype, v,
         prompt: `${c1}${v}^{${m}} : ${c2}${v}^{${n}}`,
         promptText: `${c1}${v}^${m} : ${c2}${v}^${n}`,
-        question: `\\text{Vereinfache: Koeffizient und Exponent}`,
-        questionText: `Vereinfache: Koeffizient und Exponent`,
+        question: `\\text{Vereinfache so weit wie möglich.}`,
+        questionText: `Vereinfache so weit wie möglich.`,
         numFields: 2,
-        fieldLabels: ["Koeffizient", "Exponent"],
+        fieldLabels: ["Koeffizient", "Exponent"], eingabeForm: [0, v, { h: 1 }],
         answer: [c1 / c2, m - n],
         data: { c1, c2, m, n, v }
       };
@@ -261,10 +261,10 @@
         topic: "potenzrechnung", level: 5, subtype, v,
         prompt: `(${c}${v}^{${m}})^{${n}}`,
         promptText: `(${c}${v}^${m})^${n}`,
-        question: `\\text{Vereinfache: Koeffizient und Exponent}`,
-        questionText: `Vereinfache: Koeffizient und Exponent`,
+        question: `\\text{Vereinfache so weit wie möglich.}`,
+        questionText: `Vereinfache so weit wie möglich.`,
         numFields: 2,
-        fieldLabels: ["Koeffizient", "Exponent"],
+        fieldLabels: ["Koeffizient", "Exponent"], eingabeForm: [0, v, { h: 1 }],
         answer: [Math.pow(c, n), m * n],
         data: { c, m, n, v }
       };
@@ -274,10 +274,10 @@
         topic: "potenzrechnung", level: 5, subtype,
         prompt: `x^{${a}}y^{${b}}\\cdot x^{${c}}y^{${d}}`,
         promptText: `x^${a}y^${b} · x^${c}y^${d}`,
-        question: `\\text{Vereinfache: beide Exponenten}`,
-        questionText: `Vereinfache: beide Exponenten`,
+        question: `\\text{Vereinfache so weit wie möglich.}`,
+        questionText: `Vereinfache so weit wie möglich.`,
         numFields: 2,
-        fieldLabels: ["Exponent von x", "Exponent von y"],
+        fieldLabels: ["Exponent von x", "Exponent von y"], eingabeForm: ["x", { h: 0 }, "y", { h: 1 }],
         answer: [a + c, b + d],
         data: { a, b, c, d }
       };
@@ -484,12 +484,18 @@
   function gen_potenz_8() {
     const p = KLAUSUR_PROBLEMS[_klausurIndex % KLAUSUR_PROBLEMS.length];
     _klausurIndex++;
+    // Schreibform aus den Feldern ableiten: Koeffizient vorne, Exponenten hochgestellt an den Variablen
+    const lab = p.fieldLabels, vars = p.vars || [];
+    let form = null, frage = p.question;
+    if (lab[0] === "Koeffizient" && vars.length === lab.length - 1) { form = [0]; vars.forEach((v, i) => form.push(v, { h: i + 1 })); }
+    else if (lab.length === 1 && vars.length === 1 && /\^\{\\;\?\}/.test(p.question)) { form = ["= " + vars[0], { h: 0 }]; frage = ""; }
     return {
       topic: "potenzrechnung", level: 8,
       prompt: p.prompt,
       promptText: p.prompt,
-      question: p.question,
-      questionText: p.question,
+      question: frage,
+      questionText: frage,
+      eingabeForm: form,
       numFields: p.answer.length,
       fieldLabels: p.fieldLabels,
       answer: p.answer,
@@ -643,7 +649,7 @@
     if (sub === "zuWiss" || sub === "zurueck") {
       const e = choice([-7, -6, -5, -4, -3, -2, 3, 4, 5, 6, 7, 8]);
       if (sub === "zuWiss") return { topic: "potenzrechnung", level: 10, subtype: sub, signed: true, prompt: dezStr(m, e), promptText: "wiss",
-        question: `\\text{Schreibe in wissenschaftlicher Schreibweise:}\\;\\; a\\cdot 10^{n}\\;\\; (1 \\leq a < 10)`, numFields: 2, fieldLabels: ["a", "n"], answer: [m, e], data: { m, e } };
+        question: `\\text{Schreibe in wissenschaftlicher Schreibweise}\\;\\; (1 \\leq a < 10).`, numFields: 2, fieldLabels: ["a", "n"], eingabeForm: [0, "\\cdot 10", { h: 1 }], answer: [m, e], data: { m, e } };
       return { topic: "potenzrechnung", level: 10, subtype: sub, signed: true, prompt: `${fmtNum(m)}\\cdot 10^{${e}}`, promptText: "zurück",
         question: `\\text{Schreibe als Dezimalzahl.}`, numFields: 1, fieldLabels: ["Dezimalzahl"], answer: [Number((m * Math.pow(10, e)).toPrecision(12))], data: { m, e } };
     }
@@ -651,7 +657,7 @@
       const [vs, ve, vname] = choice(VORSAETZE), einheit = choice([["m", "Meter"], ["g", "Gramm"], ["W", "Watt"]]), zahl = choice([2, 3, 5, 12, 25, 45, 250, 640]);
       const exp10 = Math.floor(Math.log10(zahl)), a = zahl / Math.pow(10, exp10), n = exp10 + ve;
       return { topic: "potenzrechnung", level: 10, subtype: sub, signed: true, prompt: T(`${zahl} ${vs}${einheit[0]}`), promptText: "Einheit",
-        question: `\\text{Schreibe in ${einheit[1]} (${einheit[0]}) in wissenschaftlicher Schreibweise.}`, numFields: 2, fieldLabels: ["a", "n"], answer: [a, n], data: { zahl, vs, ve, vname, a, n } };
+        question: `\\text{Schreibe in ${einheit[1]} (${einheit[0]}) in wissenschaftlicher Schreibweise.}`, numFields: 2, fieldLabels: ["a", "n"], eingabeForm: [0, "\\cdot 10", { h: 1 }], answer: [a, n], data: { zahl, vs, ve, vname, a, n } };
     }
     const m1 = choice([2, 3, 4, 5, 6, 8]), m2 = choice([2, 3, 4, 5, 1.5, 2.5]), e1 = randInt(-6, 8), e2 = randInt(-6, 8), op = choice(["mal", "durch"]);
     let a = op === "mal" ? m1 * m2 : m1 / m2, n = op === "mal" ? e1 + e2 : e1 - e2;
@@ -659,7 +665,7 @@
     a = Number(a.toPrecision(10));
     if (String(a).split(".")[1] && String(a).split(".")[1].length > 3) return gen_potenz_10();
     return { topic: "potenzrechnung", level: 10, subtype: sub, signed: true, prompt: `(${fmtNum(m1)}\\cdot 10^{${e1}}) ${op === "mal" ? "\\cdot" : ":"} (${fmtNum(m2)}\\cdot 10^{${e2}})`, promptText: "rechnen",
-      question: `\\text{Berechne. Ergebnis in wissenschaftlicher Schreibweise.}`, numFields: 2, fieldLabels: ["a", "n"], answer: [a, n], data: { m1, m2, e1, e2, op } };
+      question: `\\text{Berechne. Ergebnis in wissenschaftlicher Schreibweise.}`, numFields: 2, fieldLabels: ["a", "n"], eingabeForm: [0, "\\cdot 10", { h: 1 }], answer: [a, n], data: { m1, m2, e1, e2, op } };
   }
   function check_potenz_10(task, inp) { const err = []; task.answer.forEach((x, i) => { const v = parseUserNumber(inp[i]); if (isNaN(v) || Math.abs(v - x) > 1e-9 * Math.max(1, Math.abs(x))) err.push(i); }); return { correct: !err.length, fieldErrors: err }; }
   function steps_potenz_10(task) {
@@ -687,16 +693,16 @@
       const k = ks.reduce((s, x, i) => s + vz[i] * x, 0);
       const term = ks.map((x, i) => `${i === 0 ? "" : vz[i] > 0 ? " + " : " - "}${x === 1 ? "" : x}${v}^{${n}}`).join("");
       return { topic: "potenzrechnung", level: 11, subtype: sub, signed: true, prompt: term, promptText: "zusammenfassen",
-        question: `\\text{Fasse zusammen:}\\;\\; \\;?\\,${v}^{\\;?}`, numFields: 2, fieldLabels: ["Zahl davor", "Exponent"], answer: [k, n], data: { ks, vz, n } };
+        question: `\\text{Fasse zusammen.}`, numFields: 2, fieldLabels: ["Zahl davor", "Exponent"], eingabeForm: [0, v, { h: 1 }], answer: [k, n], data: { ks, vz, n } };
     }
     if (sub === "teilweise") {
       const r = choice([2, 3, 5, 6, 7]), q = randInt(2, 6);
       return { topic: "potenzrechnung", level: 11, subtype: sub, prompt: `\\sqrt{${q * q * r}}`, promptText: "teilweise",
-        question: `\\text{Ziehe teilweise die Wurzel:}\\;\\; a\\sqrt{b}\\;\\; ${T("(b so klein wie möglich)")}`, numFields: 2, fieldLabels: ["a", "b"], answer: [q, r], data: { q, r } };
+        question: `${T("Ziehe teilweise die Wurzel (unter der Wurzel so klein wie möglich).")}`, numFields: 2, fieldLabels: ["Zahl vor der Wurzel", "Zahl unter der Wurzel"], eingabeForm: [0, "√", 1], answer: [q, r], data: { q, r } };
     }
     const r = choice([2, 3, 5]), [q1, q2] = [randInt(2, 4), randInt(2, 5)], vz = choice([1, -1]);
     return { topic: "potenzrechnung", level: 11, subtype: "wurzelAdd", signed: true, prompt: `\\sqrt{${q1 * q1 * r}} ${vz > 0 ? "+" : "-"} \\sqrt{${q2 * q2 * r}}`, promptText: "Wurzeln addieren",
-      question: `\\text{Vereinfache:}\\;\\; \\;?\\,\\sqrt{${r}}`, numFields: 1, fieldLabels: [`Zahl vor √${r}`], answer: [q1 + vz * q2], data: { q1, q2, r, vz } };
+      question: `\\text{Vereinfache.}`, numFields: 1, fieldLabels: [`Zahl vor √${r}`], eingabeForm: [0, `\\sqrt{${r}}`], answer: [q1 + vz * q2], data: { q1, q2, r, vz } };
   }
   function steps_potenz_11(task) {
     const d = task.data, s = task.subtype;

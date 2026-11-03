@@ -426,7 +426,7 @@
     }
     const m0 = choice([50, 100, 120, 200]), q = Math.pow(0.5, 1 / TH);
     return { topic: "exponentialrechnung", level: 7, subtype: sub, prompt: T(`${stoffDat} sind zu Beginn ${m0} mg vorhanden, die Halbwertszeit beträgt ${TH} ${einheit}. Die Menge soll mit f(t) = a · qᵗ beschrieben werden (t in ${einheitDat}).`), promptText: "Term",
-      question: T("Bestimme a und q (q auf 4 Nachkommastellen)."), numFields: 2, fieldLabels: ["a", "q"], answer: [m0, roundKfm(q, 4)], tolerances: [1e-9, 0.00011], data: { m0, TH } };
+      question: T("Bestimme a und q (q auf 4 Nachkommastellen)."), numFields: 2, fieldLabels: ["a", "q"], eingabeForm: ["f(t) =", 0, "\\cdot", 1, "^{t}"], answer: [m0, roundKfm(q, 4)], tolerances: [1e-9, 0.00011], data: { m0, TH } };
   }
   function check_expo_7(task, inp) { const err = []; task.answer.forEach((x, i) => { const v = parseUserNumber(inp[i]); const tol = task.tolerances ? task.tolerances[i] : task.tolerance; if (isNaN(v) || Math.abs(v - x) > tol) err.push(i); }); return { correct: !err.length, fieldErrors: err }; }
   function steps_expo_7(task) {

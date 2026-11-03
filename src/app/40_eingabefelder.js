@@ -31,8 +31,20 @@
       });
       card.appendChild(grid);
     } else {
+      // Schreibform: Felder direkt im Ausdruck, z. B. [0, "x", { h: 1 }] = ▢x^▢ (Basis rechtsbündig, Exponent hochgestellt
+      // und linksbündig) oder [0, 1] = gemischte Zahl. Strings sind TeX-Text, Zahlen normale Felder, { h: i } hochgestellte Felder.
+      const form = Array.isArray(task.eingabeForm) ? task.eingabeForm : null;
+      const formIdx = new Map(); // Feldnummer -> "normal" | "hoch"
+      if (form) form.forEach((t) => { if (typeof t === "number") formIdx.set(t, "normal"); else if (t && typeof t === "object" && typeof t.h === "number") formIdx.set(t.h, "hoch"); });
+      const formTeile = {}; // Feldnummer -> { wrap, msg }
+      let formZeile = null, formMsgs = null;
       for (let idx = 0; idx < task.numFields; idx++) {
         const fieldId = prefix + idx;
+        const imForm = formIdx.has(idx);
+        if (imForm && !formZeile) { // Platzhalter an der Stelle des ersten Formfelds, wird nach der Schleife gefüllt
+          formZeile = el("div", { class: "formel-eingabe" }); formMsgs = el("div", { class: "formel-msgs" });
+          card.appendChild(el("div", { class: "field-row formel-row" }, [formZeile, formMsgs]));
+        }
         const label = (task.fieldLabels && task.fieldLabels[idx]) || `Feld ${idx + 1}`;
         // Effektiver Feldtyp: perFieldType (gemischte Aufgaben) hat Vorrang,
         // sonst der einheitliche task.fieldType (z.B. "choice" für Spiel 1),
@@ -85,8 +97,8 @@
           };
           let parts;
           if (isFraction) {
-            const zIn = mkInput("frac-in", "Zähler", label + " (Zähler)");
-            const nIn = mkInput("frac-in", "Nenner", label + " (Nenner)");
+            const zIn = mkInput("frac-in", imForm ? "" : "Zähler", label + " (Zähler)");
+            const nIn = mkInput("frac-in", imForm ? "" : "Nenner", label + " (Nenner)");
             const fracBox = el("div", { class: "frac-input" }, [zIn, el("div", { class: "frac-bar" }), nIn]);
             parts = [zIn, nIn];
             if (signBtn) wrap.appendChild(signBtn);
@@ -122,6 +134,15 @@
           if (signBtn) signBtn.addEventListener("click", () => { negative = !negative; sync(); });
           hidden._visual = parts;
           hidden._signBtn = signBtn;
+          if (imForm) {
+            wrap.classList.add(formIdx.get(idx) === "hoch" ? "fe-hoch" : "fe-normal");
+            if (isFraction) wrap.classList.add("fe-bruch");
+            wrap.appendChild(hidden);
+            const msg = el("div", { class: "field-msg", id: fieldId + "-msg" });
+            formTeile[idx] = { wrap, msg, isFraction };
+            inputs.push(hidden);
+            continue;
+          }
           row.appendChild(wrap);
           row.appendChild(hidden);
           inputs.push(hidden);
@@ -130,6 +151,14 @@
         const msg = el("div", { class: "field-msg", id: fieldId + "-msg" });
         row.appendChild(msg);
         card.appendChild(row);
+      }
+      if (formZeile) {
+        form.forEach((t) => {
+          if (typeof t === "string") formZeile.appendChild(el("span", { class: "fe-text", html: ML.mathToHtml(t) }));
+          else { const i = typeof t === "number" ? t : t.h; if (formTeile[i]) formZeile.appendChild(formTeile[i].wrap); }
+        });
+        Object.keys(formTeile).sort((a, b) => a - b).forEach((i) => formMsgs.appendChild(formTeile[i].msg));
+        if (Object.values(formTeile).some((f) => f.isFraction)) formMsgs.appendChild(el("div", { class: "frac-hint" }, [document.createTextNode("Ganze Zahl im Bruchfeld? Nenner leer lassen.")]));
       }
     }
 
