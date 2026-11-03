@@ -183,6 +183,16 @@
   .empfehlung .btn.small { align-self: flex-start; padding: 8px 14px; font-size: 0.9rem; }
   .exam-entry { margin-top: 18px; }
   .exam-entry h3 { margin: 0 0 6px; }
+  .bestenliste { margin-top: 18px; }
+  .bestenliste h3 { margin: 0 0 6px; }
+  .serie-wahl button.choice-btn { padding: 6px 14px; }
+  .besten-tab { width: 100%; border-collapse: collapse; font-size: 0.92em; margin: 10px 0 4px; }
+  .besten-tab th, .besten-tab td { text-align: left; padding: 5px 6px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  .besten-tab th { color: #475569; font-weight: 600; }
+  .besten-tab td.nowrap { white-space: nowrap; }
+  .besten-details summary { cursor: pointer; margin-top: 6px; font-size: 0.92em; color: var(--accent); }
+  .besten-details ol { margin: 4px 0 0 0; padding-left: 22px; font-size: 0.92em; }
+  .serie-zaehler { margin-left: 12px; color: #475569; font-size: 0.92em; white-space: nowrap; }
   .exam-small { color: var(--grey); font-size: 0.85rem; margin: 4px 0; }
   .setup-title { font-weight: 800; margin: 16px 0 8px; }
   .setup-title:first-child { margin-top: 0; }
@@ -358,14 +368,14 @@
   }
   function parseUserNumber(str) {
     if (typeof str !== "string") return NaN;
-    const cleaned = str.trim().replace(/\s+/g, "").replace(",", ".");
+    const cleaned = str.trim().replace(/\s+/g, "").replace(/^\+/, "").replace(/^[−–]/, "-").replace(",", ".");
     if (cleaned === "" || cleaned === "-" ) return NaN;
     if (!/^-?\d+(\.\d+)?$/.test(cleaned)) return NaN;
     return parseFloat(cleaned);
   }
   function parseUserFraction(str) {
     if (typeof str !== "string") return null;
-    const cleaned = str.trim().replace(/\s+/g, "");
+    const cleaned = str.trim().replace(/\s+/g, "").replace(/^\+/, "").replace(/^[−–]/, "-");
     if (cleaned === "") return null;
     const m = cleaned.match(/^(-?\d+)\/(-?\d+)$/);
     if (m) {
@@ -506,6 +516,8 @@
           case "beta": out += "β"; break;
           case "gamma": out += "γ"; break;
           case "pi": out += "π"; break;
+          case "varepsilon": case "epsilon": out += "ε"; break;
+          case "varphi": case "phi": out += "φ"; break;
           case "left": case "right": break; // Größenanpassung nicht nötig, folgendes Klammerzeichen wird normal durchgereicht
           case "quad": out += "  "; break;
           case "qquad": out += "    "; break;
@@ -4868,6 +4880,102 @@ const KLAUSUR_PROBLEMS = [
     return [{ label: "Nachkommastellen bestimmen den Nenner (10, 100, 1000 …), dann kürzen" }, { left: `${fmtNum(d.n / d.d)} = \\dfrac{${Z}}{${10 ** st}} = ${frTex(task.answer[0].num, task.answer[0].den)}`, right: "" }];
   }
 
+  // ---- Stufe 9: Brüche am Zahlenstrahl (Ablesen, gemischte Zahlen, Skala ohne 1, Eintragen) ----
+  // Vorbild: Schulbuch-/Arbeitsblattaufgaben (Einteilung zählen = Nenner, Teile abzählen = Zähler;
+  // Zahlenstrahl beginnt nicht bei 0; nur 0 und ein Stammbruch beschriftet; Brüche einem Buchstaben zuordnen)
+  // zahlenstrahlSVG: T Teilstücke, N Teilstücke pro Ganzes, Beginn bei "start" (ganze Zahl).
+  //   labels: [{ i, text } | { i, num, den }] unter dem Strahl, pfeile: [{ i, text }] darüber
+  function zahlenstrahlSVG(o) {
+    const B = o.breite || 340, x0 = 22, x1 = B - 22, yL = 46, T = o.T, dx = (x1 - x0) / T, X = (i) => x0 + i * dx;
+    let svg = `<svg viewBox="0 0 ${B} 100" width="${B}" height="100" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">`;
+    svg += `<line x1="${x0 - 8}" y1="${yL}" x2="${x1 + 14}" y2="${yL}" stroke="#111" stroke-width="1.6"/><path d="M${x1 + 14} ${yL - 4} L${x1 + 20} ${yL} L${x1 + 14} ${yL + 4} Z" fill="#111"/>`;
+    const lang = new Set((o.labels || []).map((l) => l.i));
+    for (let i = 0; i <= T; i++) {
+      const g = o.N && i % o.N === 0 && !o.ohneGanze ? 1 : 0, l = lang.has(i) || g ? 9 : 5;
+      svg += `<line x1="${X(i).toFixed(1)}" y1="${yL - l}" x2="${X(i).toFixed(1)}" y2="${yL + l}" stroke="#111" stroke-width="${l > 5 ? 1.6 : 1}"/>`;
+    }
+    (o.labels || []).forEach((l) => {
+      const x = X(l.i).toFixed(1);
+      if (l.den) svg += `<text x="${x}" y="${yL + 24}" font-size="15" text-anchor="middle">${l.num}</text><line x1="${(X(l.i) - 8).toFixed(1)}" y1="${yL + 29}" x2="${(X(l.i) + 8).toFixed(1)}" y2="${yL + 29}" stroke="#111"/><text x="${x}" y="${yL + 44}" font-size="15" text-anchor="middle">${l.den}</text>`;
+      else svg += `<text x="${x}" y="${yL + 26}" font-size="14" text-anchor="middle">${l.text}</text>`;
+    });
+    (o.pfeile || []).forEach((p) => {
+      const x = X(p.i);
+      svg += `<path d="M${(x - 5).toFixed(1)} ${yL - 22} L${(x + 5).toFixed(1)} ${yL - 22} L${x.toFixed(1)} ${yL - 12} Z" fill="#dc2626"/><line x1="${x.toFixed(1)}" y1="${yL - 32}" x2="${x.toFixed(1)}" y2="${yL - 21}" stroke="#dc2626" stroke-width="2"/>`;
+      if (p.text) svg += `<text x="${x.toFixed(1)}" y="${yL - 36}" font-size="14" font-weight="bold" fill="#dc2626" text-anchor="middle">${p.text}</text>`;
+    });
+    return svg + "</svg>";
+  }
+  const ganzeLabels = (start, N, T) => Array.from({ length: Math.floor(T / N) + 1 }, (_, j) => ({ i: j * N, text: String(start + j) }));
+  function gen_brueche_9() {
+    const sub = choice(["ablesen", "ablesen", "gemischt", "skala", "eintragen", "eintragen"]);
+    if (sub === "ablesen") {
+      const n = randInt(2, 12), bis = n <= 6 && Math.random() < 0.4 ? 2 : 1, anz = n * bis;
+      let k; do { k = randInt(1, anz - 1); } while (k % n === 0);
+      return { topic: "brueche", level: 9, subtype: sub, prompt: T("Welcher Bruch gehört an den Pfeil?"), promptText: `ablesen ${k}/${n}`,
+        graph: zahlenstrahlSVG({ T: anz, N: n, labels: ganzeLabels(0, n, anz), pfeile: [{ i: k }] }),
+        question: T("Gib den Bruch an (gekürzt oder ungekürzt)."), numFields: 1, fieldLabels: ["Bruch am Pfeil"], answer: [{ num: k, den: n }], data: { k, n, start: 0 } };
+    }
+    if (sub === "gemischt") {
+      const N = randInt(2, 6), g = randInt(0, 3); let k; do { k = randInt(1, 2 * N - 1); } while (k % N === 0 || (g === 0 && k < N));
+      return { topic: "brueche", level: 9, subtype: sub, prompt: T(`Der Zahlenstrahl beginnt bei ${g}. Welche Zahl gehört an den Pfeil?`), promptText: `gemischt ${g}+${k}/${N}`,
+        graph: zahlenstrahlSVG({ T: 2 * N, N, labels: ganzeLabels(g, N, 2 * N), pfeile: [{ i: k }] }),
+        question: T("Gib die Zahl als unechten Bruch an (z. B. 7/4)."), numFields: 1, fieldLabels: ["unechter Bruch"], answer: [{ num: g * N + k, den: N }], data: { g, k, N } };
+    }
+    if (sub === "skala") {
+      const q = randInt(2, 5), m = randInt(2, 4), N = q * m, anz = randInt(m + 1, Math.max(m + 1, Math.min(N - 1, 3 * m)));
+      let k; do { k = randInt(1, anz); } while (k === m);
+      return { topic: "brueche", level: 9, subtype: sub, prompt: T("Nur 0 und ein Bruch sind beschriftet. Welcher Bruch gehört an den Pfeil?"), promptText: `skala 1/${q} bei ${m}, Pfeil ${k}`,
+        graph: zahlenstrahlSVG({ T: anz, N, ohneGanze: true, labels: [{ i: 0, text: "0" }, { i: m, num: 1, den: q }], pfeile: [{ i: k }] }),
+        question: T("Gib den Bruch an (gekürzt oder ungekürzt)."), numFields: 1, fieldLabels: ["Bruch am Pfeil"], answer: [{ num: k, den: N }], data: { q, m, N, k, anz } };
+    }
+    // eintragen: Bruch dem richtigen Buchstaben zuordnen (Nenner der Einteilung ≠ Nenner des Bruchs)
+    for (;;) {
+      const N = choice([4, 6, 8, 10, 12]), bis = Math.random() < 0.5 ? 2 : 1, anz = N * bis;
+      const teiler = [2, 3, 4, 5, 6].filter((q) => N % q === 0 && q < N);
+      const q = choice(teiler); let p; do { p = randInt(1, bis * q - 1); } while (p % q === 0 || gcd(p, q) !== 1);
+      const t = p * N / q;
+      // Ablenker: Zähler direkt abgezählt (häufigster Fehler), Nachbarstriche, weitere
+      const kand = new Set([t]); if (p !== t && p < anz && p % N !== 0) kand.add(p);
+      [t - 1, t + 1].forEach((x) => { if (kand.size < 5 && x > 0 && x < anz && x % N !== 0) kand.add(x); });
+      for (let v = 0; kand.size < 5 && v < 60; v++) { const x = randInt(1, anz - 1); if (x % N !== 0) kand.add(x); }
+      if (kand.size < 4) continue;
+      const pos = [...kand].sort((a, b) => a - b), buchst = pos.map((_, j) => "ABCDE"[j]), L = buchst[pos.indexOf(t)];
+      const gem = p > q && Math.random() < 0.4, G = Math.floor(p / q), r = p % q;
+      return { topic: "brueche", level: 9, subtype: sub, prompt: gem ? gemTex(G, r, q) : `\\dfrac{${p}}{${q}}`, promptText: `eintragen ${p}/${q} auf ${N}tel`,
+        graph: zahlenstrahlSVG({ T: anz, N, labels: ganzeLabels(0, N, anz), pfeile: pos.map((i, j) => ({ i, text: buchst[j] })) }),
+        question: T("Bei welchem Buchstaben liegt diese Zahl?"), numFields: 1, fieldType: "choice", fieldChoices: [buchst], fieldLabels: ["Buchstabe"], answer: [L], data: { N, p, q, t, pos, buchst, gem, G, r } };
+    }
+  }
+  function check_brueche_9(task, inp) {
+    if (task.subtype === "eintragen") return { correct: inp[0] === task.answer[0], fieldErrors: inp[0] === task.answer[0] ? [] : [0] };
+    const f = parseUserFraction(inp[0]), a = task.answer[0];
+    const ok = !!f && f.den !== 0 && f.num * a.den === a.num * f.den; // jede gleichwertige Schreibweise zählt
+    return { correct: ok, fieldErrors: ok ? [] : [0] };
+  }
+  function steps_brueche_9(task) {
+    const d = task.data, s = task.subtype;
+    const gekuerzt = (z, n) => (gcd(z, n) > 1 ? ` = ${bruchTex(z, n)}` : "");
+    if (s === "ablesen") return [
+      { label: "Nenner: In wie viele gleich große Teile ist die Strecke von 0 bis 1 geteilt?" }, { left: `${T(d.n + " Teile")} \\;\\Rightarrow\\; ${T("Nenner")}\\; ${d.n}`, right: "" },
+      { label: "Zähler: Teile von 0 bis zum Pfeil abzählen" }, { left: `${T(d.k + " Teile")} \\;\\Rightarrow\\; \\dfrac{${d.k}}{${d.n}}${gekuerzt(d.k, d.n)}`, right: "" }];
+    if (s === "gemischt") {
+      const G = d.g + Math.floor(d.k / d.N), r = d.k % d.N;
+      return [
+        { label: `Nenner: Von ${d.g} bis ${d.g + 1} sind es ${d.N} gleich große Teile` }, { left: `${T("ein Teil")} = \\dfrac{1}{${d.N}}`, right: "" },
+        { label: `Vom letzten Ganzen (${G}) aus ${r} Teile weiter` }, { left: `${gemTex(G, r, d.N)}`, right: "" },
+        { label: "In einen unechten Bruch umwandeln: Ganze · Nenner + Zähler" }, { left: `\\dfrac{${G}\\cdot ${d.N} + ${r}}{${d.N}} = \\dfrac{${G * d.N + r}}{${d.N}}`, right: "" }];
+    }
+    if (s === "skala") return [
+      { label: `Von 0 bis 1/${d.q} sind es ${d.m} Teile` }, { left: `\\dfrac{1}{${d.q}} \\;${T("entspricht")}\\; ${T(d.m + " Teile")}`, right: "" },
+      { label: `Bis 1 sind es ${d.q}-mal so viele Teile` }, { left: `${d.q}\\cdot ${d.m} = ${d.N} \\;\\Rightarrow\\; ${T("ein Teil")} = \\dfrac{1}{${d.N}}`, right: "" },
+      { label: "Teile von 0 bis zum Pfeil abzählen" }, { left: `${T(d.k + " Teile")} \\;\\Rightarrow\\; \\dfrac{${d.k}}{${d.N}}${gekuerzt(d.k, d.N)}`, right: "" }];
+    const f = d.N / d.q, vorne = d.gem ? [{ label: "Gemischte Zahl in einen unechten Bruch umwandeln" }, { left: `${gemTex(d.G, d.r, d.q)} = \\dfrac{${d.G}\\cdot ${d.q} + ${d.r}}{${d.q}} = \\dfrac{${d.p}}{${d.q}}`, right: "" }] : [];
+    return vorne.concat([
+      { label: `Von 0 bis 1 sind es ${d.N} Teile: auf den Nenner ${d.N} erweitern` }, { left: `\\dfrac{${d.p}}{${d.q}} = \\dfrac{${d.p}\\cdot ${f}}{${d.q}\\cdot ${f}} = \\dfrac{${d.t}}{${d.N}}`, right: "" },
+      { label: `${d.t} Teile von 0 aus abzählen` }, { left: T("Buchstabe " + task.answer[0]), right: "" }]);
+  }
+
   Object.assign(ERKL, {
     "brueche/5": E("Gemischte Zahlen", [T("Gemischte Zahl → unechter Bruch: Ganze · Nenner + Zähler, Nenner bleibt."), T("Unechter Bruch → gemischte Zahl: Zähler : Nenner, der Rest wird der neue Zähler.")],
       [{ left: `2\\,\\dfrac{3}{4} = \\dfrac{2\\cdot 4 + 3}{4} = \\dfrac{11}{4}\\,, \\qquad \\dfrac{17}{5} = 3\\,\\dfrac{2}{5}`, right: "" }], [T("Ganze und Zähler einfach addieren: 2 3/4 ist nicht 5/4.")]),
@@ -4879,6 +4987,170 @@ const KLAUSUR_PROBLEMS = [
     "brueche/8": E("Dezimalbrüche", [T("Bruch → Dezimalzahl: auf 10, 100, 1000 … erweitern oder Zähler durch Nenner teilen."), T("Dezimalzahl → Bruch: Nachkommastellen bestimmen den Nenner, dann kürzen."), T("Abbrechend genau dann, wenn der gekürzte Nenner nur die Primfaktoren 2 und 5 hat; sonst periodisch (1/3 = 0,333…).")],
       [{ left: `\\dfrac{3}{8} = \\dfrac{375}{1000} = 0,375\\,, \\qquad 0,35 = \\dfrac{35}{100} = \\dfrac{7}{20}`, right: "" }], [T("Bei 3/6 = 1/2 vorher nicht kürzen und deshalb „periodisch“ wegen der 3 im Nenner sagen.")])
   });
+  // ---- Stufe 10: Brüche als Tortenstücke (Kreisdarstellung, Kl. 5–6) ----
+  // Vorbild: Schulbuch/Arbeitsblätter: gefärbten Anteil ablesen (auch kürzen), Rest, passende Torte
+  // zuordnen (gleichwertige Brüche), zwei Torten vergleichen, zwei Farben, gemischte Zahlen aus mehreren Kreisen.
+  const TORTE_BLAU = "#60a5fa", TORTE_ROT = "#f87171";
+  // Eine Torte als SVG-Gruppe (ohne <svg>-Hülle): Start oben, im Uhrzeigersinn; farben[i] = Füllfarbe oder null (weiß)
+  function torteGruppe(n, farben, G, x0, y0) {
+    const c = G / 2, r = G / 2 - 4, f = (x) => x.toFixed(2);
+    let g = `<g transform="translate(${x0},${y0 || 0})" class="torte">`;
+    for (let i = 0; i < n; i++) {
+      const fill = farben[i] || "#ffffff";
+      if (n === 1) { g += `<circle cx="${c}" cy="${c}" r="${r}" fill="${fill}" stroke="#334155" stroke-width="1.5" data-stueck="${i}"/>`; continue; }
+      const a0 = -Math.PI / 2 + (2 * Math.PI * i) / n, a1 = -Math.PI / 2 + (2 * Math.PI * (i + 1)) / n;
+      g += `<path d="M ${c} ${c} L ${f(c + r * Math.cos(a0))} ${f(c + r * Math.sin(a0))} A ${r} ${r} 0 ${n === 2 ? 1 : 0} 1 ${f(c + r * Math.cos(a1))} ${f(c + r * Math.sin(a1))} Z" fill="${fill}" stroke="#334155" stroke-width="1.5" data-stueck="${i}"/>`;
+    }
+    return g + "</g>";
+  }
+  // mehrere Torten in EINEM SVG (proZeile Torten je Zeile), optional mit Namen darunter
+  function tortenReihe(liste, proZeile) {
+    const k = proZeile || liste.length, gap = 14, G = Math.max(...liste.map((t) => t.gr || 120)), mitName = liste.some((t) => t.name);
+    const zeilen = Math.ceil(liste.length / k), ZH = G + (mitName ? 22 : 0) + (zeilen > 1 ? 8 : 0);
+    const W = Math.min(k, liste.length) * G + gap * (Math.min(k, liste.length) - 1), H = zeilen * ZH;
+    let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" class="graph-svg">`;
+    liste.forEach((t, j) => {
+      const x = (j % k) * (G + gap), y = Math.floor(j / k) * ZH, g = t.gr || 120, dx = x + (G - g) / 2;
+      svg += torteGruppe(t.n, t.farben, g, dx, y + (G - g) / 2);
+      if (t.name) svg += `<text x="${(x + G / 2).toFixed(1)}" y="${(y + G + 17).toFixed(1)}" font-size="14" font-weight="bold" text-anchor="middle" fill="#0f172a" class="tortenname">${t.name}</text>`;
+    });
+    return svg + "</svg>";
+  }
+  const gefaerbt = (n, k, farbe) => Array.from({ length: n }, (_, i) => (i < k ? farbe || TORTE_BLAU : null));
+  function gen_brueche_10() {
+    const sub = choice(["ablesen", "ablesen", "rest", "zuordnen", "vergleichen", "zweiFarben", "gemischt"]);
+    if (sub === "ablesen" || sub === "rest") {
+      const n = randInt(2, 12); let k; do { k = randInt(1, n - 1); } while (sub === "ablesen" && n > 4 && Math.random() < 0.5 && gcd(k, n) === 1);
+      const z = sub === "rest" ? n - k : k;
+      return { topic: "brueche", level: 10, subtype: sub, prompt: T(sub === "rest" ? "Welcher Anteil der Torte ist NICHT gefärbt?" : "Welcher Anteil der Torte ist blau gefärbt?"), promptText: `${sub} ${k}/${n}`,
+        graph: tortenReihe([{ n, farben: gefaerbt(n, k), gr: 150 }]), question: T("Gib den Anteil als Bruch an (gekürzt oder ungekürzt)."),
+        numFields: 1, fieldLabels: ["Anteil"], answer: [{ num: z, den: n }], data: { n, k, z } };
+    }
+    if (sub === "zuordnen") {
+      for (;;) {
+        let p, q; do { q = choice([2, 3, 4, 5, 6]); p = randInt(1, q - 1); } while (gcd(p, q) !== 1);
+        const m = choice([1, 2, 2, 3].filter((x) => q * x <= 12)), N = q * m, K = p * m; // richtige Torte, evtl. feiner eingeteilt
+        const kand = [{ n: N, k: K }];
+        const ablenker = [{ n: N, k: p }, { n: q + p, k: p }, { n: N, k: N - K }, { n: N, k: K + 1 }, { n: N, k: K - 1 }, { n: p + q, k: q }];
+        mische(ablenker).forEach((a) => { if (kand.length < 4 && a.k > 0 && a.k < a.n && a.n <= 12 && Math.abs(a.k / a.n - p / q) > 1e-9 && !kand.some((b) => b.n === a.n && b.k === a.k)) kand.push(a); });
+        if (kand.length < 4) continue;
+        const reihen = mische(kand).map((t, i) => Object.assign(t, { name: "ABCD"[i] }));
+        const L = reihen.find((t) => t.n === N && t.k === K).name;
+        return { topic: "brueche", level: 10, subtype: sub, prompt: `${T("Welche Torte zeigt")}\\;\\; \\dfrac{${p}}{${q}}\\;${T("?")}`, promptText: `zuordnen ${p}/${q}`,
+          graph: tortenReihe(reihen.map((t) => ({ n: t.n, farben: gefaerbt(t.n, t.k), name: t.name, gr: 120 })), 2), question: T("Wähle die passende Torte."),
+          numFields: 1, fieldType: "choice", fieldChoices: [["A", "B", "C", "D"]], fieldLabels: ["Torte"], answer: [L], data: { p, q, N, K, reihen: reihen.map((t) => [t.name, t.n, t.k]) } };
+      }
+    }
+    if (sub === "vergleichen") {
+      let n1, k1, n2, k2; do { n1 = randInt(3, 12); n2 = randInt(3, 12); k1 = randInt(1, n1 - 1); k2 = randInt(1, n2 - 1); } while (n1 === n2 || (Math.random() < 0.7 && k1 * n2 === k2 * n1));
+      const v = k1 * n2 - k2 * n1, A = v > 0 ? "Torte A" : v < 0 ? "Torte B" : "gleich viel";
+      return { topic: "brueche", level: 10, subtype: sub, prompt: T("Zwei gleich große Torten wurden unterschiedlich geschnitten. Die blauen Stücke sind noch übrig."), promptText: `vergleichen ${k1}/${n1} ${k2}/${n2}`,
+        graph: tortenReihe([{ n: n1, farben: gefaerbt(n1, k1), name: "A", gr: 120 }, { n: n2, farben: gefaerbt(n2, k2), name: "B", gr: 120 }]),
+        question: T("Wie viel ist jeweils übrig, und von welcher Torte ist mehr übrig?"), numFields: 3, perFieldType: ["text", "text", "choice"], fieldChoices: [null, null, ["Torte A", "Torte B", "gleich viel"]],
+        fieldLabels: ["übrig von A", "übrig von B", "mehr übrig ist bei"], answer: [{ num: k1, den: n1 }, { num: k2, den: n2 }, A], data: { n1, k1, n2, k2 } };
+    }
+    if (sub === "zweiFarben") {
+      for (;;) {
+        const n = choice([4, 6, 8, 10, 12]), b = randInt(1, n - 2), r = randInt(1, n - 1 - b);
+        if (gcd(b, n) === 1 && gcd(r, n) === 1 && Math.random() < 0.6) continue; // meist kürzbare Teile, damit die Torte "Viertel/Drittel" zeigt
+        const farben = Array.from({ length: n }, (_, i) => (i < b ? TORTE_BLAU : i < b + r ? TORTE_ROT : null));
+        return { topic: "brueche", level: 10, subtype: sub, prompt: T("Ein Teil der Torte ist blau, ein Teil rot gefärbt."), promptText: `zweiFarben ${b}+${r}/${n}`,
+          graph: tortenReihe([{ n, farben, gr: 150 }]), question: T("Welcher Anteil ist blau, welcher rot, und welcher Anteil ist insgesamt gefärbt?"),
+          numFields: 3, fieldLabels: ["blau", "rot", "insgesamt gefärbt"], answer: [{ num: b, den: n }, { num: r, den: n }, { num: b + r, den: n }], data: { n, b, r } };
+      }
+    }
+    // gemischt: g volle Torten und eine angeschnittene
+    const g = randInt(1, 3), n = randInt(2, 8), k = randInt(1, n - 1);
+    const liste = Array.from({ length: g }, () => ({ n, farben: gefaerbt(n, n), gr: 90 })).concat([{ n, farben: gefaerbt(n, k), gr: 90 }]);
+    return { topic: "brueche", level: 10, subtype: sub, prompt: T("Alle Torten sind gleich groß. Wie viele Torten sind blau gefärbt?"), promptText: `gemischt ${g} ${k}/${n}`,
+      graph: tortenReihe(liste, 3), question: T("Gib die Anzahl als gemischte Zahl und als unechten Bruch an."), numFields: 3, perFieldType: ["text", "text", "text"],
+      fieldLabels: ["ganze Torten", "Bruchteil der letzten Torte", "als unechter Bruch"], answer: [g, { num: k, den: n }, { num: g * n + k, den: n }], data: { g, n, k } };
+  }
+  function check_brueche_10(task, inp) {
+    const err = [];
+    task.answer.forEach((a, i) => {
+      let ok;
+      if (a && typeof a === "object") { const f = parseUserFraction(inp[i]); ok = !!f && f.den !== 0 && fractionsEqual(f, a); } // jede gleichwertige Schreibweise
+      else if (typeof a === "string") ok = inp[i] === a;
+      else { const v = parseUserNumber(inp[i]); ok = !isNaN(v) && v === a; }
+      if (!ok) err.push(i);
+    });
+    return { correct: !err.length, fieldErrors: err };
+  }
+  function steps_brueche_10(task) {
+    const d = task.data, s = task.subtype, gk = (z, n) => (gcd(z, n) > 1 ? ` = ${bruchTex(z, n)}` : "");
+    if (s === "ablesen" || s === "rest") return [
+      { label: "Nenner: In wie viele gleich große Stücke ist die Torte geteilt?" }, { left: `${T(d.n + " Stücke")} \\;\\Rightarrow\\; ${T("Nenner")}\\; ${d.n}`, right: "" },
+      { label: s === "rest" ? "Zähler: die weißen (nicht gefärbten) Stücke zählen" : "Zähler: die blauen Stücke zählen" },
+      { left: s === "rest" ? `${d.n} - ${d.k} = ${d.z} \\;\\Rightarrow\\; \\dfrac{${d.z}}{${d.n}}${gk(d.z, d.n)}` : `\\dfrac{${d.k}}{${d.n}}${gk(d.k, d.n)}`, right: "" }];
+    if (s === "zuordnen") {
+      const r = d.reihen.map(([nm, n, k]) => `${nm}: \\dfrac{${k}}{${n}}`).join(",\\;\\; ");
+      return [{ label: "Bei jeder Torte den Anteil ablesen: gefärbte Stücke von allen Stücken" }, { left: r, right: "" },
+        { label: "Kürzen bzw. erweitern und mit dem gesuchten Bruch vergleichen" },
+        { left: `\\dfrac{${d.K}}{${d.N}}${d.K !== d.p ? ` = \\dfrac{${d.p}}{${d.q}}` : ""} \\;\\Rightarrow\\; ${T("Torte " + task.answer[0])}`, right: "" }];
+    }
+    if (s === "vergleichen") {
+      const L = (d.n1 * d.n2) / gcd(d.n1, d.n2), z1 = d.k1 * L / d.n1, z2 = d.k2 * L / d.n2;
+      return [{ label: "Anteile ablesen" }, { left: `A: \\dfrac{${d.k1}}{${d.n1}},\\;\\; B: \\dfrac{${d.k2}}{${d.n2}}`, right: "" },
+        { label: `Gleichnamig machen (Hauptnenner ${L}) und die Zähler vergleichen` },
+        { left: `\\dfrac{${z1}}{${L}} ${z1 > z2 ? ">" : z1 < z2 ? "<" : "="} \\dfrac{${z2}}{${L}} \\;\\Rightarrow\\; ${T(task.answer[2] === "gleich viel" ? "gleich viel übrig" : "mehr übrig bei " + task.answer[2])}`, right: "" }];
+    }
+    if (s === "zweiFarben") return [
+      { label: `Die Torte hat ${d.n} Stücke: blaue und rote Stücke einzeln zählen` }, { left: `${T("blau")}\\; \\dfrac{${d.b}}{${d.n}}${gk(d.b, d.n)},\\;\\; ${T("rot")}\\; \\dfrac{${d.r}}{${d.n}}${gk(d.r, d.n)}`, right: "" },
+      { label: "Insgesamt: gleicher Nenner, Zähler addieren" }, { left: `\\dfrac{${d.b}}{${d.n}} + \\dfrac{${d.r}}{${d.n}} = \\dfrac{${d.b + d.r}}{${d.n}}${gk(d.b + d.r, d.n)}`, right: "" }];
+    return [
+      { label: "Volle Torten zählen = Ganze" }, { left: `${d.g}\\; ${T(d.g === 1 ? "ganze Torte" : "ganze Torten")}`, right: "" },
+      { label: "Die angeschnittene Torte ablesen" }, { left: `\\dfrac{${d.k}}{${d.n}} \\;\\Rightarrow\\; ${d.g}\\,\\dfrac{${d.k}}{${d.n}}`, right: "" },
+      { label: "In einen unechten Bruch umwandeln: Ganze · Nenner + Zähler" }, { left: `\\dfrac{${d.g}\\cdot ${d.n} + ${d.k}}{${d.n}} = \\dfrac{${d.g * d.n + d.k}}{${d.n}}`, right: "" }];
+  }
+
+  Object.assign(ERKL, {
+    "brueche/9": E("Brüche am Zahlenstrahl",
+      [T("Nenner: Zähle, in wie viele gleich große Teile die Strecke von 0 bis 1 geteilt ist – die Teilstücke, nicht die Striche."),
+       T("Zähler: Zähle die Teile von 0 bis zur gesuchten Stelle."),
+       T("Beginnt der Strahl nicht bei 0: vom letzten Ganzen aus weiterzählen (1 und 3 Viertel = 7/4)."),
+       T("Ist nur 0 und z. B. 1/4 beschriftet: Teile bis 1/4 zählen und mal 4 nehmen – so viele Teile hat das Ganze."),
+       T("Bruch eintragen: zuerst auf den Nenner der Einteilung erweitern (3/4 bei Achteln = 6/8), dann abzählen.")],
+      [{ left: `${T("8 Teile von 0 bis 1, Pfeil nach 6 Teilen:")}\\;\\; \\dfrac{6}{8} = \\dfrac{3}{4}`, right: "" }],
+      [T("Die Striche statt der Teilstücke zählen (bei 8 Teilen gibt es 9 Striche)."), T("Den Strich bei 0 mitzählen."), T("Bei einer Skala, die bei 1 beginnt, die Ganzen vergessen."),
+       T("Den Zähler direkt abzählen, ohne vorher auf die Einteilung zu erweitern.")], "zahlenstrahl")
+  });
+  Object.assign(ERKL, {
+    "brueche/10": E("Brüche als Tortenstücke",
+      [T("Nenner: Zähle, in wie viele gleich große Stücke die Torte geteilt ist."), T("Zähler: Zähle die gefärbten Stücke."),
+       T("Der nicht gefärbte Rest: alle Stücke minus die gefärbten."), T("Zwei Torten vergleichen: Brüche gleichnamig machen, dann die Zähler vergleichen."),
+       T("Mehrere Torten: volle Torten sind die Ganzen, die angeschnittene Torte ist der Bruchteil.")],
+      [{ left: `${T("8 Stücke, 6 davon blau:")}\\;\\; \\dfrac{6}{8} = \\dfrac{3}{4}\\,, \\qquad ${T("nicht gefärbt:")}\\;\\; \\dfrac{2}{8} = \\dfrac{1}{4}`, right: "" }],
+      [T("Gefärbte Stücke durch die weißen statt durch ALLE Stücke teilen (6 : 2 statt 6 : 8)."), T("Bei verschieden geschnittenen Torten nur die Anzahl der Stücke vergleichen – 3 große Stücke können mehr sein als 5 kleine.")], "torte")
+  });
+  H.durchRest = "Der Nenner ist die Anzahl ALLER Stücke, nicht nur der weißen.";
+  H.stueckeGezaehlt = "Nicht die Anzahl der Stücke vergleichen – die Stücke sind verschieden groß. Erst gleichnamig machen.";
+  DIAG["brueche/10"] = (t, i, w, raw) => {
+    const d = t.data, s = t.subtype;
+    if ((s === "ablesen" || s === "rest") && w && d.n - d.z > 0 && nah(w.v, d.z / (d.n - d.z))) return H.durchRest;
+    if (s === "vergleichen" && i === 2 && d.k1 !== d.k2 && raw === (d.k1 > d.k2 ? "Torte A" : "Torte B") && raw !== t.answer[2]) return H.stueckeGezaehlt;
+    return null;
+  };
+  const erklGrafikBR = erklGrafik;
+  erklGrafik = function (art) {
+    if (art === "torte") return tortenReihe([{ n: 8, farben: gefaerbt(8, 6), name: "6/8 = 3/4 blau", gr: 150 }]);
+    if (art === "zahlenstrahl") return zahlenstrahlSVG({ T: 8, N: 8, labels: [{ i: 0, text: "0" }, { i: 8, text: "1" }, { i: 6, num: 3, den: 4 }], pfeile: [{ i: 6, text: "6/8" }] });
+    return erklGrafikBR(art);
+  };
+  H.stricheGezaehlt = "Zähle die Teilstücke (die Abstände zwischen den Strichen), nicht die Striche.";
+  H.nullMitgezaehlt = "Der Strich bei 0 zählt nicht mit – zähle die Schritte ab 0.";
+  H.startVergessen = "Der Zahlenstrahl beginnt nicht bei 0 – die Ganzen links vom Pfeil gehören dazu.";
+  H.skalaNichtEins = "Der beschriftete Bruch ist nicht die 1 – überlege, wie viele Teile bis zur 1 gehören.";
+  H.nichtErweitert = "Erst auf den Nenner der Einteilung erweitern, dann abzählen.";
+  DIAG["brueche/9"] = (t, i, w, raw) => {
+    const d = t.data, s = t.subtype;
+    if (s === "eintragen") { const j = d.buchst.indexOf(raw); return j >= 0 && d.pos[j] === d.p ? H.nichtErweitert : null; }
+    if (!w) return null;
+    if (s === "ablesen") { if (nah(w.v, d.k / (d.n + 1))) return H.stricheGezaehlt; if (nah(w.v, (d.k + 1) / d.n)) return H.nullMitgezaehlt; }
+    if (s === "gemischt") { if (nah(w.v, d.k / d.N) || nah(w.v, (d.k % d.N) / d.N)) return H.startVergessen; if (nah(w.v, d.g + d.k / (d.N + 1))) return H.stricheGezaehlt; }
+    if (s === "skala") { if (nah(w.v, d.k / d.m) || nah(w.v, d.k / d.q)) return H.skalaNichtEins; }
+    return null;
+  };
   H.kehrwertVergessen = "Beim Dividieren mit dem KEHRWERT multiplizieren (Zähler und Nenner des zweiten Bruchs vertauschen).";
   H.nennerMal = "Bei Bruch mal ganzer Zahl nur den Zähler multiplizieren.";
   H.gemischtAddiert = "Gemischte Zahl → Bruch: Ganze MAL Nenner, dann Zähler dazu.";
@@ -4893,8 +5165,10 @@ const KLAUSUR_PROBLEMS = [
       name: "Bruchrechnung",
       grade: "Kl. 5–6",
       levels: [
+        { id: 10, name: "Brüche als Tortenstücke", grade: "Kl. 5–6", generate: gen_brueche_10, check: check_brueche_10, steps: steps_brueche_10 },
         { id: 1, name: "Was ist größer? (gleicher Nenner/Zähler)", grade: "Kl. 5", generate: gen_brueche_1, check: check_brueche_1, steps: steps_brueche_1 },
         { id: 2, name: "Ungleichnamige Brüche vergleichen", grade: "Kl. 5–6", generate: gen_brueche_2, check: check_brueche_2, steps: steps_brueche_2 },
+        { id: 9, name: "Brüche am Zahlenstrahl", grade: "Kl. 5–6", generate: gen_brueche_9, check: check_brueche_9, steps: steps_brueche_9 },
         { id: 3, name: "Brüche kürzen (ggT)", grade: "Kl. 6", generate: gen_brueche_3, check: check_brueche_3, steps: steps_brueche_3 },
         { id: 5, name: "Gemischte Zahlen", grade: "Kl. 6", generate: gen_brueche_5, check: check_bruch_streng, steps: steps_brueche_5 },
         { id: 6, name: "Addieren und subtrahieren", grade: "Kl. 6", generate: gen_brueche_6, check: check_bruch_streng, steps: steps_brueche_6 },
@@ -4942,6 +5216,37 @@ const KLAUSUR_PROBLEMS = [
           { text: "Auf einen gemeinsamen Nenner gebracht (oder in Dezimalzahlen umgewandelt)", punkte: 1 }, { text: "Richtige Reihenfolge", punkte: 1 }],
           [{ left: sortiert.map(([p, q]) => `\\dfrac{${p}}{${q}}`).join(" < "), right: "" }])
       ] };
+    } },
+    { key: "torte", teil: "A", afb: 1, titel: "Brüche als Tortenstücke", baue: () => {
+      const a = stufenTeil("brueche", 10, (t) => t.subtype === "zweiFarben"), b = stufenTeil("brueche", 10, (t) => t.subtype === "vergleichen");
+      return { kontext: "", graph: tortenReihe([{ n: a.task.data.n, farben: Array.from({ length: a.task.data.n }, (_, i) => (i < a.task.data.b ? TORTE_BLAU : i < a.task.data.b + a.task.data.r ? TORTE_ROT : null)), name: "a)", gr: 110 }, { n: b.task.data.n1, farben: gefaerbt(b.task.data.n1, b.task.data.k1), name: "A", gr: 110 }, { n: b.task.data.n2, farben: gefaerbt(b.task.data.n2, b.task.data.k2), name: "B", gr: 110 }]), teile: [Object.assign(a, { text: T("Erste Torte (blau und rot): ") + a.text }), Object.assign(b, { text: T("Torten A und B: ") + b.text })] };
+    } },
+    { key: "zahlenstrahl", teil: "A", afb: 1, titel: "Brüche am Zahlenstrahl", baue: () => {
+      for (;;) {
+        const N = choice([4, 6, 8, 10, 12]), T2 = 2 * N;
+        const pos = new Set([randInt(1, N - 1), randInt(N + 1, T2 - 1)]); while (pos.size < 4) { const x = randInt(1, T2 - 1); if (x !== N) pos.add(x); }
+        const P = [...pos].sort((a, b) => a - b), Bu = ["A", "B", "C", "D"];
+        // c) ein Buchstabe, dessen Bruch sich kürzen lässt (Nenner der Frage ≠ Einteilung)
+        const kand = P.map((x, j) => ({ x, j })).filter((o) => o.j > 0 && o.j < 3 && gcd(o.x, N) > 1 && o.x % N !== 0);
+        if (!kand.length) continue;
+        const c = choice(kand), cg = gcd(c.x, N), A = P[0], D = P[3];
+        const dG = Math.floor(D / N), dr = D % N;
+        const svg = zahlenstrahlSVG({ T: T2, N, labels: ganzeLabels(0, N, T2), pfeile: P.map((i, j) => ({ i, text: Bu[j] })) });
+        const satz = choice([[[1, 3], [3, 4], [5, 6]], [[2, 3], [1, 4], [1, 6]], [[1, 2], [5, 6], [1, 4]], [[3, 4], [1, 6], [2, 3]]]).slice().sort((u, v) => u[0] / u[1] - v[0] / v[1]);
+        const zw = satz.map(([z, n]) => z * 12 / n);
+        const loes = zahlenstrahlSVG({ T: 12, N: 12, labels: [{ i: 0, text: "0" }, { i: 12, text: "1" }].concat(satz.map(([z, n], j) => ({ i: zw[j], num: z, den: n }))) });
+        return { kontext: T(`Der Zahlenstrahl ist von 0 bis 2 in gleich große Teile eingeteilt.`), graph: svg, teile: [
+          autoTeil(T("Welcher Bruch gehört zu A? (vollständig gekürzt)"), [{ label: "Bruch bei A", kind: "fraction", answer: { num: A / gcd(A, N), den: N / gcd(A, N) } }],
+            [{ label: `Von 0 bis 1 sind es ${N} Teile, bis A sind es ${A}` }, { left: `\\dfrac{${A}}{${N}}${gcd(A, N) > 1 ? ` = ${bruchTex(A, N)}` : ""}`, right: "" }]),
+          autoTeil(T("Welche Zahl gehört zu D? Gib sie als unechten Bruch an (vollständig gekürzt)."), [{ label: "Zahl bei D", kind: "fraction", answer: { num: D / gcd(D, N), den: N / gcd(D, N) } }],
+            [{ label: `${dG} Ganzes und ${dr} weitere Teile` }, { left: `${gemTex(dG, dr, N)} = \\dfrac{${D}}{${N}}${gcd(D, N) > 1 ? ` = ${bruchTex(D, N)}` : ""}`, right: "" }]),
+          autoTeil(`${T("Bei welchem Buchstaben liegt")}\\;\\; \\dfrac{${c.x / cg}}{${N / cg}}\\;${T("?")}`, [{ label: "Buchstabe", kind: "choice", choices: Bu, answer: Bu[c.j] }],
+            [{ label: `Auf den Nenner ${N} erweitern` }, { left: `\\dfrac{${c.x / cg}}{${N / cg}} = \\dfrac{${c.x}}{${N}} \\;\\Rightarrow\\; ${T("Buchstabe " + Bu[c.j])}`, right: "" }]),
+          papierTeil(`${T("✏️ Zeichne einen Zahlenstrahl von 0 bis 1 (Länge 12 cm) und trage")}\\;\\; ${satz.map(([z, n]) => `\\dfrac{${z}}{${n}}`).join(",\\; ")}\\;\\; ${T("ein.")}`, [
+            { text: "Sinnvolle Einteilung: 12 cm = 12 Teile, 1 cm entspricht 1/12", punkte: 1 }, { text: satz.map(([z, n], j) => `${z}/${n} bei ${zw[j]} cm`).join(", "), punkte: 2 }],
+            [{ label: "Gemeinsamer Nenner der drei Brüche ist 12" }, { left: satz.map(([z, n], j) => `\\dfrac{${z}}{${n}} = \\dfrac{${zw[j]}}{12}`).join(",\\; "), right: "" }], loes)
+        ] };
+      }
     } },
     { key: "rechnen", teil: "A", afb: 2, titel: "Addieren und subtrahieren", baue: () => {
       const mk = (op, gleich) => { let a, b, c, d, n, D;
@@ -5585,6 +5890,330 @@ const KLAUSUR_PROBLEMS = [
     return erklGrafikQ(art);
   };
   // ============================================================
+  // POTENZFUNKTIONEN f(x) = a·xⁿ (Kl. 10)
+  // Inhalte und Obergrenze nach Recherche (Arbeitsblätter/Klassenarbeiten Kl. 10:
+  // Eigenschaften und Symmetrie, Graphen zuordnen, Punktprobe, Funktionsterm aus
+  // ein bzw. zwei Punkten, Potenzgleichungen xⁿ = c, Verschieben/Strecken,
+  // Anwendungen wie Bremsweg und "Verdoppeln ⇒ 2ⁿ-fach").
+  // Bewusst ohne gebrochene Exponenten bei Funktionsgraphen (außer √x im Zuordnen)
+  // und ohne Umkehrfunktionen (Oberstufe).
+  // ============================================================
+  // Koeffizient als Bruch p/q (q > 0), z. B. { p: -1, q: 2 }
+  const PF_KOEFF = [[1, 1], [-1, 1], [2, 1], [-2, 1], [3, 1], [1, 2], [-1, 2], [1, 4], [1, 3]];
+  function koeffTex(p, q) { // vor einem x-Term
+    if (q === 1) return p === 1 ? "" : p === -1 ? "-" : `${p}`;
+    return p < 0 ? `-\\dfrac{${-p}}{${q}}` : `\\dfrac{${p}}{${q}}`;
+  }
+  const potTex = (p, q, n) => `${koeffTex(p, q)}x^{${n}}`;
+  // exakter Wert a·x0ⁿ als gekürzter Bruch
+  function pfWert(p, q, n, x0) {
+    let num = p, den = q;
+    if (n >= 0) num *= Math.pow(x0, n); else den *= Math.pow(x0, -n);
+    if (den < 0) { num = -num; den = -den; }
+    const g = gcd(Math.abs(num), den) || 1;
+    return { num: num / g, den: den / g };
+  }
+  const frTxt = (f) => (f.den === 1 ? `${f.num}` : `${f.num}/${f.den}`);
+  const frTexPF = (f) => bruchTex(f.num, f.den);
+  const klammerX = (x) => (x < 0 ? `(${x})` : `${x}`);
+  function check_pf_wert(task, inp) { // Bruchfelder: jede gleichwertige Schreibweise; Zahlen mit Toleranz; Auswahl exakt
+    const err = [];
+    task.answer.forEach((a, i) => {
+      let ok;
+      if (a && typeof a === "object") { const f = parseUserFraction(inp[i]); ok = !!f && f.den !== 0 && fractionsEqual(f, a); }
+      else if (typeof a === "string") ok = inp[i] === a;
+      else { const v = parseUserNumber(inp[i]); ok = !isNaN(v) && Math.abs(v - a) <= ((task.tolerances && task.tolerances[i]) || 1e-9); }
+      if (!ok) err.push(i);
+    });
+    return { correct: !err.length, fieldErrors: err };
+  }
+
+  // ---- Stufe 1: Eigenschaften ----
+  const SYM = ["achsensymmetrisch zur y-Achse", "punktsymmetrisch zum Ursprung"];
+  const DEF = ["alle reellen Zahlen", "alle reellen Zahlen außer 0"];
+  const ASY = ["keine Asymptoten", "x-Achse und y-Achse"];
+  function gen_pf_1() {
+    const n = choice([-4, -3, -2, -1, 2, 3, 4, 5]), [p, q] = choice([[1, 1], [-1, 1], [2, 1], [-2, 1], [1, 2], [-3, 1]]);
+    return { topic: "potenzfunktionen", level: 1, prompt: `f(x) = ${potTex(p, q, n)}`, promptText: `Eigenschaften n=${n}`,
+      question: T("Bestimme Symmetrie, Definitionsbereich und Asymptoten des Graphen."), numFields: 3, fieldType: "choice",
+      fieldLabels: ["Symmetrie", "Definitionsbereich", "Asymptoten"], fieldChoices: [SYM, DEF, ASY],
+      answer: [n % 2 === 0 ? SYM[0] : SYM[1], n < 0 ? DEF[1] : DEF[0], n < 0 ? ASY[1] : ASY[0]], data: { n, p, q } };
+  }
+  function steps_pf_1(task) {
+    const { n } = task.data, ger = n % 2 === 0;
+    return [
+      { label: `Symmetrie: Der Exponent ${n} ist ${ger ? "gerade" : "ungerade"}` },
+      { left: T(ger ? "f(−x) = f(x) ⇒ achsensymmetrisch zur y-Achse" : "f(−x) = −f(x) ⇒ punktsymmetrisch zum Ursprung"), right: "" },
+      { label: n < 0 ? "Negativer Exponent: x steht im Nenner" : "Positiver Exponent: man kann jede Zahl einsetzen" },
+      { left: n < 0 ? `x^{${n}} = \\dfrac{1}{x^{${-n}}} \\;\\Rightarrow\\; ${T("x = 0 ist verboten")}` : T("Definitionsbereich: alle reellen Zahlen"), right: "" },
+      { label: "Asymptoten" },
+      { left: T(n < 0 ? "Für x → 0 wird |f(x)| riesig (y-Achse), für große |x| geht f(x) gegen 0 (x-Achse)" : "Keine – der Graph wächst für große |x| immer weiter"), right: "" }
+    ];
+  }
+
+  // ---- Stufe 2: Graphen zuordnen (gleicher Generator wie Potenzrechnung Stufe 7) ----
+  function gen_pf_2() { const t = gen_potenz_7(); t.topic = "potenzfunktionen"; t.level = 2; return t; }
+
+  // ---- Stufe 3: Funktionswerte und Punktprobe ----
+  function gen_pf_3() {
+    const sub = choice(["wert", "wert", "punktprobe"]);
+    const n = choice([-2, -1, 2, 3, 4]), [p, q] = choice(PF_KOEFF), x0 = choice([-3, -2, -1, 2, 3].filter((x) => Math.abs(Math.pow(x, Math.abs(n))) <= 81));
+    const w = pfWert(p, q, n, x0);
+    if (sub === "wert") return { topic: "potenzfunktionen", level: 3, subtype: sub, signed: true, prompt: `f(x) = ${potTex(p, q, n)}`, promptText: `f(${x0})`,
+      question: `${T("Berechne")}\\;\\; f(${x0})`, numFields: 1, fieldLabels: [`f(${x0})`], answer: [w], data: { p, q, n, x0 } };
+    // Punktprobe: richtiger Wert oder typischer Fehler (Vorzeichen bei gerader Potenz, Koeffizient mitpotenziert)
+    const kand = [{ num: -w.num, den: w.den }]; // Vorzeichenfehler
+    if (n > 0) kand.push(pfWert(Math.pow(p, n), Math.pow(q, n), n, x0)); // Faktor mitpotenziert: (a·x)ⁿ
+    const falsch = kand.filter((f) => !fractionsEqual(f, w));
+    const liegt = Math.random() < 0.5 || !falsch.length, y = liegt ? w : choice(falsch);
+    return { topic: "potenzfunktionen", level: 3, subtype: sub, prompt: `f(x) = ${potTex(p, q, n)}\\,,\\quad P(${x0}\\,|\\,${frTexPF(y)})`, promptText: `Punktprobe ${x0}|${frTxt(y)}`,
+      question: T("Liegt der Punkt P auf dem Graphen von f?"), numFields: 1, fieldType: "choice", fieldChoices: [["ja", "nein"]], fieldLabels: ["P liegt auf dem Graphen"],
+      answer: [liegt ? "ja" : "nein"], data: { p, q, n, x0, y } };
+  }
+  function steps_pf_3(task) {
+    const { p, q, n, x0 } = task.data, w = pfWert(p, q, n, x0);
+    const potenz = n >= 0 ? `${klammerX(x0)}^{${n}} = ${Math.pow(x0, n)}` : `${klammerX(x0)}^{${n}} = \\dfrac{1}{${klammerX(x0)}^{${-n}}} = ${bruchTex(1, Math.pow(x0, -n))}`;
+    const out = [
+      { label: "x-Wert einsetzen – negative Zahlen in Klammern!" },
+      { left: `f(${x0}) = ${koeffTex(p, q) === "" ? "" : koeffTex(p, q) === "-" ? "-" : koeffTex(p, q) + "\\cdot "}${klammerX(x0)}^{${n}}`, right: "" },
+      { label: "Erst die Potenz, dann mit dem Faktor davor multiplizieren" },
+      { left: potenz, right: "" },
+      { left: `f(${x0}) = ${frTexPF(w)}`, right: "" }
+    ];
+    if (task.subtype === "punktprobe") out.push({ label: "Mit der y-Koordinate von P vergleichen" }, { left: T(task.answer[0] === "ja" ? "gleich ⇒ P liegt auf dem Graphen" : `${frTxt(task.data.y)} ≠ ${frTxt(w)} ⇒ P liegt nicht auf dem Graphen`), right: "" });
+    return out;
+  }
+
+  // ---- Stufe 4: Potenzgleichungen a·xⁿ = c ----
+  const mengeTxt = (L) => (L.length ? "{ " + L.map((x) => fmtNum(x)).join("; ") + " }" : "{ } (keine Lösung)");
+  function gen_pf_4() {
+    if (Math.random() < 0.6) { // exakt, ohne Taschenrechner
+      const n = choice([2, 3, 4, 5]), b = randInt(1, n <= 3 ? 6 : 3) * (n % 2 && Math.random() < 0.4 ? -1 : 1), a = choice([1, 1, 2, 3, -1]);
+      let c = a * Math.pow(b, n);
+      const keine = n % 2 === 0 && Math.random() < 0.25; if (keine) c = -c;
+      const L = keine ? [] : n % 2 === 0 ? [-Math.abs(b), Math.abs(b)] : [b];
+      const opt = [mengeTxt(L)], kand = [[Math.abs(b)], [-Math.abs(b), Math.abs(b)], [-b], [], [n * (b > 0 ? 1 : -1)]];
+      kand.forEach((k) => { const t = mengeTxt(k); if (!opt.includes(t) && opt.length < 4) opt.push(t); });
+      return { topic: "potenzfunktionen", level: 4, subtype: "exakt", prompt: `${a === 1 ? "" : a === -1 ? "-" : a}x^{${n}} = ${c}`, promptText: `${a}x^${n}=${c}`,
+        question: T("Bestimme die Lösungsmenge (ohne Taschenrechner)."), numFields: 1, fieldType: "choice", fieldChoices: [mische(opt)], fieldLabels: ["Lösungsmenge"], answer: [mengeTxt(L)], data: { a, n, c, L } };
+    }
+    const n = choice([2, 3, 4, 5]), a = choice([1, 2, 3, 0.5]);
+    const vollePotenz = (v) => { const w = Math.round(Math.pow(Math.abs(v), 1 / n)); return Math.abs(w ** n - Math.abs(v)) < 1e-9; };
+    let c; do { c = randInt(2, 60) * (n % 2 && Math.random() < 0.3 ? -1 : 1); } while (vollePotenz(c / a));
+    const r = Math.sign(c) * Math.pow(Math.abs(c / a), 1 / n), anz = n % 2 === 0 ? "2" : "1", groesste = n % 2 === 0 ? Math.abs(r) : r;
+    return { topic: "potenzfunktionen", level: 4, subtype: "gerundet", signed: true, prompt: `${a === 1 ? "" : fmtNum(a)}x^{${n}} = ${c}`, promptText: `${a}x^${n}=${c}`,
+      question: T("Wie viele Lösungen gibt es? Gib die größte Lösung auf 2 Nachkommastellen an."), numFields: 2, perFieldType: ["choice", "text"], fieldChoices: [["0", "1", "2"], null],
+      fieldSigned: [false, true], fieldLabels: ["Anzahl der Lösungen", "größte Lösung"], answer: [anz, Math.round(groesste * 100) / 100], tolerances: [0, 0.011], data: { a, n, c } };
+  }
+  function steps_pf_4(task) {
+    const { a, n, c } = task.data, ger = n % 2 === 0, rest = c / a;
+    const out = [];
+    if (a !== 1) out.push({ label: `Zuerst durch ${fmtNum(a)} teilen` }, { left: `x^{${n}} = ${fmtNum(rest)}`, right: "" });
+    out.push({ label: ger ? "Gerader Exponent: Die Potenz ist nie negativ – bei positiver rechter Seite gibt es zwei Lösungen (±)" : "Ungerader Exponent: genau eine Lösung, das Vorzeichen bleibt erhalten" });
+    if (ger && rest < 0) { out.push({ left: T(`x^${n} kann nicht ${fmtNum(rest)} sein ⇒ keine Lösung`), right: "" }); return out; }
+    const w = Math.pow(Math.abs(rest), 1 / n), wt = Number.isInteger(Math.round(w * 1e9) / 1e9) ? fmtNum(Math.round(w)) : `\\sqrt[${n}]{${fmtNum(Math.abs(rest))}} \\approx ${fmtNum(Math.round(w * 100) / 100)}`;
+    out.push({ label: `${n}. Wurzel ziehen` }, { left: ger ? `x = \\pm ${wt}` : `x = ${rest < 0 ? "-" : ""}${wt}`, right: "" });
+    return out;
+  }
+
+  // ---- Stufe 5: Funktionsterm bestimmen ----
+  function gen_pf_5() {
+    if (Math.random() < 0.5) { // n gegeben, a aus einem Punkt
+      const n = choice([-2, -1, 2, 3, 4]), [p, q] = choice(PF_KOEFF.filter(([pp]) => pp !== 0)), x0 = choice([-2, 2, 3, -3].filter((x) => Math.abs(Math.pow(x, Math.abs(n))) <= 81));
+      const y = pfWert(p, q, n, x0);
+      return { topic: "potenzfunktionen", level: 5, subtype: "einPunkt", signed: true, prompt: `f(x) = a\\cdot x^{${n}}\\,,\\quad P(${x0}\\,|\\,${frTexPF(y)})`, promptText: `a aus P(${x0}|${frTxt(y)})`,
+        question: T("Der Graph geht durch P. Bestimme a."), numFields: 1, fieldLabels: ["a"], answer: [{ num: p, den: q }], data: { p, q, n, x0, y } };
+    }
+    // a und n aus zwei Punkten: A(x1|y1), B(2·x1|y2), Quotient = 2ⁿ
+    const n = choice([-2, -1, 2, 3, 4]), [p, q] = choice([[1, 1], [2, 1], [3, 1], [-1, 1], [1, 2], [-2, 1], [4, 1]]), x1 = choice([1, 2]);
+    const y1 = pfWert(p, q, n, x1), y2 = pfWert(p, q, n, 2 * x1);
+    return { topic: "potenzfunktionen", level: 5, subtype: "zweiPunkte", signed: true, prompt: `f(x) = a\\cdot x^{n}\\,,\\quad A(${x1}\\,|\\,${frTexPF(y1)})\\,,\\;\\; B(${2 * x1}\\,|\\,${frTexPF(y2)})`, promptText: `zwei Punkte x1=${x1}`,
+      question: T("Der Graph geht durch A und B. Bestimme n und a."), numFields: 2, fieldLabels: ["n", "a"], answer: [n, { num: p, den: q }], data: { p, q, n, x1, y1, y2 } };
+  }
+  function steps_pf_5(task) {
+    const d = task.data;
+    if (task.subtype === "einPunkt") {
+      const xp = pfWert(1, 1, d.n, d.x0);
+      return [
+        { label: "Koordinaten von P einsetzen" }, { left: `${frTexPF(d.y)} = a\\cdot ${klammerX(d.x0)}^{${d.n}} = a\\cdot ${frTexPF(xp)}`, right: "" },
+        { label: `Durch ${frTxt(xp)} teilen` }, { left: `a = ${frTexPF(d.y)} : ${frTexPF(xp)} = ${bruchTex(d.p, d.q)}`, right: "" }];
+    }
+    const quot = pfWert(1, 1, d.n, 2);
+    return [
+      { label: "Beide Punkte einsetzen und die Gleichungen durcheinander teilen – a kürzt sich weg" },
+      { left: `\\dfrac{f(${2 * d.x1})}{f(${d.x1})} = \\dfrac{a\\cdot ${2 * d.x1}^{n}}{a\\cdot ${d.x1}^{n}} = 2^{n}`, right: "" },
+      { left: `2^{n} = ${frTexPF(d.y2)} : ${frTexPF(d.y1)} = ${frTexPF(quot)} \\;\\Rightarrow\\; n = ${d.n}`, right: "" },
+      { label: "n einsetzen und a aus A bestimmen" },
+      { left: `${frTexPF(d.y1)} = a\\cdot ${d.x1}^{${d.n}} \\;\\Rightarrow\\; a = ${bruchTex(d.p, d.q)}`, right: "" }];
+  }
+
+  // ---- Stufe 6: Verschieben, strecken, spiegeln: f(x) = a(x − d)ⁿ + e ----
+  const verschTex = (a, d, n, e) => `${a === 1 ? "" : a === -1 ? "-" : fmtNum(a)}${d === 0 ? "x" : `(x ${d > 0 ? "-" : "+"} ${Math.abs(d)})`}^{${n}}${e === 0 ? "" : e > 0 ? ` + ${e}` : ` - ${-e}`}`;
+  function beschreibung(a, d, e) {
+    const t = [];
+    if (d) t.push(`${Math.abs(d)} nach ${d > 0 ? "rechts" : "links"}`);
+    if (e) t.push(`${Math.abs(e)} nach ${e > 0 ? "oben" : "unten"}`);
+    let s = t.length ? "um " + t.join(" und ") + " verschoben" : "nicht verschoben";
+    if (a < 0) s += ", an der x-Achse gespiegelt";
+    if (Math.abs(a) > 1) s += `, mit Faktor ${fmtNum(Math.abs(a))} gestreckt`;
+    if (Math.abs(a) < 1) s += `, mit Faktor ${fmtNum(Math.abs(a))} gestaucht`;
+    return s;
+  }
+  function pfGraph(a, d, e, n, marks) {
+    return renderGraphSVG([{ fn: (x) => (n < 0 && Math.abs(x - d) < 1e-9 ? NaN : a * Math.pow(x - d, n) + e), color: "#2563eb" }],
+      { xmin: d - 5, xmax: d + 5, ymin: e - 5, ymax: e + 5, width: 280, height: 260, padLeft: 24, padBottom: 20, ticks: true, samples: 600, marks: marks || [] });
+  }
+  function gen_pf_6() {
+    const n = choice([2, 3, -1]), a = choice([1, -1, 2, -2]), d = randInt(-3, 3), e = randInt(-3, 3);
+    if (Math.random() < 0.55) {
+      const marks = n < 0 ? [{ type: "vline", x: d, color: "#94a3b8" }, { type: "hline", y: e, color: "#94a3b8" }] : [];
+      return { topic: "potenzfunktionen", level: 6, subtype: "ablesen", signed: true, prompt: `${T("Der Graph gehört zu")}\\;\\; f(x) = a\\cdot (x - d)^{${n}} + e`, promptText: `ablesen n=${n}`,
+        graph: pfGraph(a, d, e, n, marks), question: T(n < 0 ? "Lies d und e an den Asymptoten ab und bestimme a." : "Lies d und e ab und bestimme a."),
+        numFields: 3, fieldLabels: ["d", "e", "a"], answer: [d, e, a], data: { a, d, e, n } };
+    }
+    const richtig = beschreibung(a, d, e), opt = [richtig];
+    [[a, -d, e], [a, d, -e], [-a, d, e], [a, -d, -e], [a, e, d]].forEach(([aa, dd, ee]) => { const s = beschreibung(aa, dd, ee); if (!opt.includes(s) && opt.length < 4) opt.push(s); });
+    return { topic: "potenzfunktionen", level: 6, subtype: "beschreiben", prompt: `f(x) = ${verschTex(a, d, n, e)}`, promptText: `beschreiben ${a},${d},${e}`,
+      question: `${T("Wie entsteht der Graph von f aus dem Graphen von")}\\;\\; y = x^{${n}}${T("?")}`, numFields: 1, fieldType: "choice", fieldChoices: [mische(opt)], fieldLabels: ["Der Graph ist"], answer: [richtig], data: { a, d, e, n } };
+  }
+  function steps_pf_6(task) {
+    const { a, d, e, n } = task.data, zentrum = n === 2 ? "Scheitelpunkt" : n === 3 ? "Symmetriezentrum (Wendepunkt)" : "Schnittpunkt der Asymptoten";
+    if (task.subtype === "beschreiben") return [
+      { label: "In (x − d) verschiebt d nach RECHTS, wenn d positiv ist – also umgekehrt zum Vorzeichen in der Klammer" },
+      { left: d === 0 ? T("keine Klammer ⇒ keine Verschiebung nach links/rechts") : `(x ${d > 0 ? "-" : "+"} ${Math.abs(d)}) \\;\\Rightarrow\\; ${T(Math.abs(d) + " nach " + (d > 0 ? "rechts" : "links"))}`, right: "" },
+      { label: "Die Zahl hinten (e) verschiebt nach oben bzw. unten" },
+      { left: T(e === 0 ? "e = 0 ⇒ nicht nach oben/unten" : `e = ${e} ⇒ ${Math.abs(e)} nach ${e > 0 ? "oben" : "unten"}`), right: "" },
+      { label: "Der Faktor a: Minus spiegelt an der x-Achse, |a| > 1 streckt" },
+      { left: T(beschreibung(a, d, e)), right: "" }];
+    return [
+      { label: `${zentrum} ablesen: Er ist von (0 | 0) nach (d | e) gewandert` },
+      { left: `d = ${d},\\;\\; e = ${e}`, right: "" },
+      { label: "a: einen Schritt nach rechts gehen und schauen, wie weit der Graph steigt oder fällt" },
+      { left: `f(${d + 1}) = ${e + a} \\;\\Rightarrow\\; a = ${e + a} - ${klammerX(e)} = ${a}`, right: "" }];
+  }
+
+  // ---- Stufe 7: Anwendungen ----
+  const PF_KONTEXTE = [
+    { n: 2, txt: "Der Flächeninhalt eines Kreises ist A = π·r².", g: "Radius", z: "Flächeninhalt" },
+    { n: 3, txt: "Das Volumen eines Würfels ist V = a³.", g: "Kantenlänge", z: "Volumen" },
+    { n: 3, txt: "Das Volumen einer Kugel ist V = 4/3·π·r³.", g: "Radius", z: "Volumen" },
+    { n: 2, txt: "Für den Bremsweg gilt die Faustformel s = (v/10)².", g: "Geschwindigkeit", z: "Bremsweg" },
+    { n: -2, txt: "Die Anziehungskraft zweier Körper ist F = c·r⁻² (r = Abstand).", g: "Abstand", z: "Anziehungskraft" },
+    { n: -2, txt: "Die Helligkeit einer Lampe nimmt mit H = c·r⁻² ab (r = Abstand).", g: "Abstand", z: "Helligkeit" }
+  ];
+  function gen_pf_7() {
+    const sub = choice(["faktor", "faktor", "bremsweg", "kugel"]);
+    if (sub === "faktor") {
+      const k = choice(PF_KONTEXTE), [kn, kd, wort] = choice([[2, 1, "verdoppelt"], [3, 1, "verdreifacht"], [1, 2, "halbiert"]]);
+      const num = k.n >= 0 ? Math.pow(kn, k.n) : Math.pow(kd, -k.n), den = k.n >= 0 ? Math.pow(kd, k.n) : Math.pow(kn, -k.n), g = gcd(num, den);
+      return textTask("potenzfunktionen", 7, sub, T(`${k.txt} Der ${k.g} wird ${wort}.`), T(`Mit welchem Faktor ändert sich der ${k.z}?`),
+        [{ label: "Faktor (z. B. 4 oder 1/9)", kind: "fraction", answer: { num: num / g, den: den / g } }],
+        [{ label: `Der ${k.g} steht hoch ${k.n}: neuer Wert = Faktor hoch ${k.n}` },
+         { left: `\\left(${kd === 1 ? kn : `\\dfrac{${kn}}{${kd}}`}\\right)^{${k.n}} = ${bruchTex(num, den)}`, right: "" },
+         { left: T(`Der ${k.z} wird mit ${bruchTxt(num, den)} multipliziert.`), right: "" }], { dataExtra: { n: k.n, kn, kd } });
+    }
+    if (sub === "bremsweg") {
+      if (Math.random() < 0.5) { const v = choice([30, 50, 70, 80, 100, 120, 130]), s = (v / 10) ** 2;
+        return textTask("potenzfunktionen", 7, "bremsweg", T(`Für den Bremsweg s (in m) bei der Geschwindigkeit v (in km/h) gilt die Faustformel s = (v/10)². Ein Auto fährt ${v} km/h.`),
+          T("Wie lang ist der Bremsweg?"), [{ label: "Bremsweg in m", kind: "number", answer: s }],
+          [{ label: "v einsetzen, erst teilen, dann quadrieren" }, { left: `s = \\left(\\dfrac{${v}}{10}\\right)^{2} = ${v / 10}^{2} = ${s}`, right: "" }], { dataExtra: { v, rueck: false } }); }
+      const s = choice([16, 25, 36, 49, 64, 81, 100, 144]), v = 10 * Math.sqrt(s);
+      return textTask("potenzfunktionen", 7, "bremsweg", T(`Für den Bremsweg s (in m) bei der Geschwindigkeit v (in km/h) gilt die Faustformel s = (v/10)². Ein Bremsweg war ${s} m lang.`),
+        T("Wie schnell war das Auto?"), [{ label: "Geschwindigkeit in km/h", kind: "number", answer: v }],
+        [{ label: "Gleichung aufstellen und rückwärts rechnen: erst Wurzel, dann mal 10" }, { left: `\\left(\\dfrac{v}{10}\\right)^{2} = ${s} \\;\\Rightarrow\\; \\dfrac{v}{10} = \\sqrt{${s}} = ${Math.sqrt(s)} \\;\\Rightarrow\\; v = ${v}`, right: "" }], { dataExtra: { s, rueck: true } });
+    }
+    const V = choice([100, 250, 500, 1000, 2000, 5000]), r = Math.cbrt((3 * V) / (4 * Math.PI)), r1 = Math.round(r * 10) / 10;
+    return textTask("potenzfunktionen", 7, "kugel", T(`Eine Kugel soll ein Volumen von ${V} cm³ haben (V = 4/3·π·r³).`),
+      T("Wie groß muss der Radius sein? (1 Nachkommastelle)"), [{ label: "Radius in cm", kind: "number", answer: r1, tol: 0.06 }],
+      [{ label: "Nach r³ auflösen: mal 3, durch 4π" }, { left: `r^{3} = \\dfrac{3\\cdot ${V}}{4\\pi} \\approx ${fmtNum(Math.round(r ** 3 * 100) / 100)}`, right: "" },
+       { label: "Dritte Wurzel ziehen" }, { left: `r = \\sqrt[3]{${fmtNum(Math.round(r ** 3 * 100) / 100)}} \\approx ${fmtNum(r1)}`, right: "" }], { dataExtra: { V } });
+  }
+
+  TOPICS.potenzfunktionen = {
+    name: "Potenzfunktionen",
+    grade: "Kl. 10",
+    levels: [
+      { id: 1, name: "Eigenschaften erkennen", grade: "Kl. 10", generate: gen_pf_1, check: check_pf_wert, steps: steps_pf_1 },
+      { id: 2, name: "Graphen zuordnen", grade: "Kl. 10", generate: gen_pf_2, check: check_potenz_7, steps: steps_potenz_7 },
+      { id: 3, name: "Funktionswerte und Punktprobe", grade: "Kl. 10", signed: true, generate: gen_pf_3, check: check_pf_wert, steps: steps_pf_3 },
+      { id: 4, name: "Potenzgleichungen", grade: "Kl. 10", signed: true, generate: gen_pf_4, check: check_pf_wert, steps: steps_pf_4 },
+      { id: 5, name: "Funktionsterm bestimmen", grade: "Kl. 10", signed: true, generate: gen_pf_5, check: check_pf_wert, steps: steps_pf_5 },
+      { id: 6, name: "Verschieben, strecken, spiegeln", grade: "Kl. 10", signed: true, generate: gen_pf_6, check: check_pf_wert, steps: steps_pf_6 },
+      { id: 7, name: "Anwendungen", grade: "Kl. 10", calculatorHint: "Taschenrechner erlaubt", generate: gen_pf_7, check: check_textaufgabe, steps: steps_textaufgabe }
+    ]
+  };
+
+  // --- Erklärungen ---
+  Object.assign(ERKL, {
+    "potenzfunktionen/1": E("Eigenschaften von Potenzfunktionen",
+      [T("Gerader Exponent (x², x⁴, x⁻²): achsensymmetrisch zur y-Achse, denn (−x)ⁿ = xⁿ."), T("Ungerader Exponent (x³, x⁻¹): punktsymmetrisch zum Ursprung, denn (−x)ⁿ = −xⁿ."),
+       T("Negativer Exponent: x⁻ⁿ = 1/xⁿ, also ist x = 0 verboten. Die Achsen sind Asymptoten."), T("Der Faktor a ändert die Symmetrie nicht.")],
+      [{ left: `f(x) = -2x^{-3}:\\;\\; ${T("ungerade ⇒ punktsymmetrisch; negativ ⇒ x ≠ 0, Asymptoten x- und y-Achse")}`, right: "" }],
+      [T("Das Minus vor dem Faktor mit dem Exponenten verwechseln: −x² ist trotzdem achsensymmetrisch."), T("Bei negativem Exponenten x = 0 einsetzen.")], "pf1"),
+    "potenzfunktionen/2": Object.assign({}, ERKL["potenzrechnung/7"]),
+    "potenzfunktionen/3": E("Funktionswerte und Punktprobe",
+      [T("x-Wert in Klammern einsetzen, zuerst die Potenz, dann mal a."), T("Negativer Exponent: x⁻ⁿ = 1/xⁿ."), T("Punktprobe: f(x-Koordinate) ausrechnen und mit der y-Koordinate vergleichen.")],
+      [{ left: `f(x) = \\dfrac{1}{2}x^{3}:\\;\\; f(-2) = \\dfrac{1}{2}\\cdot (-2)^{3} = \\dfrac{1}{2}\\cdot (-8) = -4`, right: "" }],
+      [T("(−2)⁴ ohne Klammer rechnen: −2⁴ = −16, aber (−2)⁴ = +16."), T("Den Faktor mitpotenzieren: ½·2³ ist 4, nicht (½·2)³ = 1.")]),
+    "potenzfunktionen/4": E("Potenzgleichungen xⁿ = c",
+      [T("Zuerst durch den Faktor vor xⁿ teilen."), T("Gerader Exponent: c > 0 ⇒ zwei Lösungen ±ⁿ√c; c < 0 ⇒ keine Lösung."), T("Ungerader Exponent: genau eine Lösung, sie hat das Vorzeichen von c.")],
+      [{ left: `x^{4} = 81 \\;\\Rightarrow\\; x = \\pm 3\\,, \\qquad x^{3} = -8 \\;\\Rightarrow\\; x = -2\\,, \\qquad x^{2} = -4 \\;\\Rightarrow\\; ${T("keine Lösung")}`, right: "" }],
+      [T("Bei geradem Exponenten die negative Lösung vergessen."), T("Bei x⁴ = −16 die Lösung −2 angeben – (−2)⁴ ist +16.")]),
+    "potenzfunktionen/5": E("Funktionsterm bestimmen",
+      [T("n bekannt: Punkt einsetzen und nach a auflösen."), T("n und a gesucht: beide Punkte einsetzen und die Gleichungen durcheinander teilen – a kürzt sich weg."),
+       T("Liegen die x-Werte im Verhältnis 2 : 1, ist der Quotient der y-Werte 2ⁿ.")],
+      [{ left: `A(1\\,|\\,3),\\; B(2\\,|\\,24):\\;\\; \\dfrac{24}{3} = 8 = 2^{3} \\;\\Rightarrow\\; n = 3,\\;\\; a = 3`, right: "" }],
+      [T("Beim Einsetzen den Exponenten auf a mit anwenden."), T("Den Quotienten 1/4 als n = 2 statt n = −2 deuten.")]),
+    "potenzfunktionen/6": E("Verschieben, strecken, spiegeln",
+      [T("f(x) = a·(x − d)ⁿ + e: Der Graph von xⁿ wird um d nach rechts und um e nach oben verschoben."), T("Achtung: (x − 2) bedeutet 2 nach RECHTS, (x + 2) bedeutet 2 nach links."),
+       T("a < 0 spiegelt an der x-Achse, |a| > 1 streckt, |a| < 1 staucht."), T("a ablesen: vom verschobenen Ursprung (d | e) einen Schritt nach rechts – der Graph ändert sich um a.")],
+      [{ left: `f(x) = -(x - 2)^{3} + 1:\\;\\; ${T("2 nach rechts, 1 nach oben, an der x-Achse gespiegelt")}`, right: "" }],
+      [T("Das Vorzeichen in der Klammer übernehmen: (x + 3) ist 3 nach LINKS."), T("e und d vertauschen.")], "pf6"),
+    "potenzfunktionen/7": E("Potenzfunktionen im Alltag",
+      [T("Steht eine Größe hoch n, ändert sich das Ergebnis beim k-fachen Wert um den Faktor kⁿ."), T("Verdoppeln bei r²: Faktor 4; bei r³: Faktor 8; bei r⁻²: Faktor 1/4."), T("Rückwärts rechnen: nach der Potenz auflösen und die passende Wurzel ziehen.")],
+      [{ left: T("Kugel: Radius verdoppelt ⇒ Volumen 2³ = 8-mal so groß. Abstand verdoppelt ⇒ Anziehungskraft 2⁻² = 1/4."), right: "" }],
+      [T("Annehmen, dass sich das Ergebnis genauso verdoppelt."), T("Bei negativem Exponenten den Kehrwert vergessen.")])
+  });
+  const erklGrafikPF = erklGrafik;
+  erklGrafik = function (art) {
+    if (art === "pf1") return renderGraphSVG([{ fn: (x) => -2 / (x * x * x), color: "#2563eb", label: "f" }], { xmin: -3, xmax: 3, ymin: -5, ymax: 5, width: 300, height: 220, padLeft: 26, padBottom: 22, ticks: true, samples: 600 });
+    if (art === "pf6") return pfGraph(-1, 2, 1, 3, [{ type: "point", x: 2, y: 1, label: "(2|1)", color: "#111" }]);
+    return erklGrafikPF(art);
+  };
+
+  // --- Fehlerdiagnose ---
+  H.pfKlammer = "Negative x-Werte in Klammern setzen: (−2)⁴ = +16, bei geradem Exponenten wird das Ergebnis positiv.";
+  H.pfZweiteLoesung = "Gerader Exponent: Es gibt auch eine negative Lösung (±).";
+  H.pfVerschiebung = "Vorzeichen in der Klammer umdrehen: (x − d) verschiebt um d nach rechts.";
+  H.pfQuadratStattN = "Der Faktor ist kⁿ, nicht k – die Größe steht hoch n.";
+  Object.assign(DIAG, {
+    "potenzfunktionen/3": (t, i, w) => { const d = t.data; if (!w || t.subtype !== "wert" || d.x0 > 0 || d.n % 2) return null; const f = pfWert(d.p, d.q, d.n, d.x0); return nah(w.v, -f.num / f.den) ? H.pfKlammer : null; },
+    "potenzfunktionen/4": (t, i, w, raw) => (t.subtype === "exakt" && t.data.n % 2 === 0 && t.data.L.length === 2 && raw === mengeTxt([Math.abs(t.data.L[1])]) ? H.pfZweiteLoesung : null),
+    "potenzfunktionen/6": (t, i, w) => (w && t.subtype === "ablesen" && i === 0 && t.data.d !== 0 && nah(w.v, -t.data.d) ? H.pfVerschiebung : null),
+    "potenzfunktionen/7": (t, i, w) => { const d = t.dataExtra; return w && t.subtype === "faktor" && d.n !== 1 && nah(w.v, d.kn / d.kd) ? H.pfQuadratStattN : null; }
+  });
+
+  // --- Klassenarbeit ---
+  KA_INFO.potenzfunktionen = { klasse: "Kl. 10", tr: true };
+  KA_VORLAGEN.potenzfunktionen = [
+    { key: "eigenschaften", teil: "A", afb: 1, titel: "Eigenschaften und Funktionswerte", baue: () => ({ kontext: "", teile: [stufenTeil("potenzfunktionen", 1), stufenTeil("potenzfunktionen", 3, (t) => t.subtype === "wert"), stufenTeil("potenzfunktionen", 3, (t) => t.subtype === "punktprobe")] }) },
+    { key: "graphen", teil: "A", afb: 2, titel: "Graphen zuordnen", baue: () => ({ kontext: "", teile: [stufenTeil("potenzfunktionen", 2)] }) },
+    { key: "gleichungen", teil: "A", afb: 2, titel: "Potenzgleichungen", baue: () => ({ kontext: "", teile: [stufenTeil("potenzfunktionen", 4, (t) => t.subtype === "exakt"), stufenTeil("potenzfunktionen", 4, (t) => t.subtype === "exakt")] }) },
+    { key: "term", teil: "A", afb: 2, titel: "Funktionsterm bestimmen", baue: () => ({ kontext: "", teile: [stufenTeil("potenzfunktionen", 5, (t) => t.subtype === "einPunkt"), stufenTeil("potenzfunktionen", 5, (t) => t.subtype === "zweiPunkte")] }) },
+    { key: "aussagen", teil: "A", afb: 3, titel: "Aussagen prüfen", baue: () => {
+      const pool = [
+        () => aussageTeil(T("Lea behauptet: „Alle Graphen von f(x) = xⁿ gehen durch den Punkt (1 | 1).“"), true, ["1ⁿ = 1 für jeden Exponenten n.", "Stimmt nur für gerade Exponenten.", "Stimmt nur für positive Exponenten."]),
+        () => aussageTeil(T("Ben behauptet: „Der Graph von f(x) = x⁻² hat bei x = 0 den Punkt (0 | 0).“"), false, ["x⁻² = 1/x², durch 0 darf man nicht teilen – die y-Achse ist Asymptote.", "Stimmt, jede Potenzfunktion geht durch (0 | 0).", "Stimmt, weil 0⁻² = 0 ist."]),
+        () => aussageTeil(T("Mia behauptet: „Verdoppelt man den Radius eines Kreises, verdoppelt sich auch seine Fläche.“"), false, ["A = πr²: (2r)² = 4r², die Fläche wird 4-mal so groß.", "Stimmt, Radius und Fläche sind proportional.", "Stimmt, weil π konstant ist."]),
+        () => aussageTeil(T("Tim behauptet: „Die Gleichung x⁴ = −16 hat die Lösung x = −2.“"), false, ["(−2)⁴ = +16; eine gerade Potenz ist nie negativ, also gibt es keine Lösung.", "Stimmt, weil 2⁴ = 16 ist.", "Stimmt, das Minus bleibt beim Wurzelziehen erhalten."]),
+        () => aussageTeil(T("Ida behauptet: „Der Graph von f(x) = −x³ ist punktsymmetrisch zum Ursprung.“"), true, ["Der Exponent 3 ist ungerade; das Minus spiegelt nur an der x-Achse, die Symmetrie bleibt.", "Stimmt nicht, das Minus zerstört die Symmetrie.", "Stimmt nicht, nur gerade Exponenten sind symmetrisch."])
+      ];
+      return { kontext: "", teile: mische(pool).slice(0, 3).map((f) => f()) };
+    } },
+    { key: "verschieben", teil: "B", afb: 2, titel: "Verschobene Graphen", baue: () => { const t = stufenTeil("potenzfunktionen", 6, (x) => x.subtype === "ablesen"); return { kontext: "", graph: t.task.graph, teile: [t, stufenTeil("potenzfunktionen", 6, (x) => x.subtype === "beschreiben")] }; } },
+    { key: "anwendungen", teil: "B", afb: 2, titel: "Potenzfunktionen im Alltag", baue: () => { const a = stufenTeil("potenzfunktionen", 7, (t) => t.subtype === "faktor"); let b; do { b = stufenTeil("potenzfunktionen", 7); } while (b.task.subtype === "faktor"); return { kontext: "", teile: [a, b] }; } }
+  ];
+  // ============================================================
   // TRIGONOMETRIE (rechtwinkliges Dreieck, Kl. 9/10)
   // Bezeichnungen: rechter Winkel bei C; a = BC (gegenüber A), b = AC, c = AB (Hypotenuse).
   // Für α (bei A): Gegenkathete a, Ankathete b. Für β (bei B): Gegenkathete b, Ankathete a.
@@ -5990,6 +6619,170 @@ const KLAUSUR_PROBLEMS = [
       ], { dataExtra: { x, y, ga } });
   }
 
+  // ---- Stufe 9: Mehrschrittige Aufgaben (Zerlegung in rechtwinklige Teildreiecke, Kl. 10) ----
+  // Obergrenze nach Klassenarbeiten/Rahmenplan Kl. 10: zwei Standpunkte, quadratische Pyramide
+  // (Seitenhöhe, Oberfläche, Neigungswinkel), Trapez, gleichschenkliges Dreieck, exakte Werte über Pythagoras.
+  // figurSVG2: freie Figur aus Punkten; Seitentexte außen (weg vom Schwerpunkt), Winkelbögen, rechte Winkel
+  function figurSVG2(o) {
+    const W = 330, Hh = 240, pad = 52, P = o.punkte, keys = Object.keys(P);
+    const xs = keys.map((k) => P[k][0]), ys = keys.map((k) => P[k][1]);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+    const sk = Math.min((W - 2 * pad) / (maxX - minX || 1), (Hh - 2 * pad) / (maxY - minY || 1));
+    const offX = (W - (maxX - minX) * sk) / 2, offY = (Hh - (maxY - minY) * sk) / 2;
+    const S = {}; keys.forEach((k) => { S[k] = [offX + (P[k][0] - minX) * sk, Hh - (offY + (P[k][1] - minY) * sk)]; });
+    const M = [keys.reduce((s, k) => s + S[k][0], 0) / keys.length, keys.reduce((s, k) => s + S[k][1], 0) / keys.length];
+    const norm = (v) => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; }, f = (x) => x.toFixed(1);
+    let svg = `<svg viewBox="0 0 ${W} ${Hh}" width="${W}" height="${Hh}" xmlns="http://www.w3.org/2000/svg" class="graph-svg">`;
+    (o.flaechen || []).forEach((fl) => { svg += `<polygon points="${fl.map((k) => f(S[k][0]) + "," + f(S[k][1])).join(" ")}" fill="${o.fuellung || "#eff6ff"}" stroke="none"/>`; });
+    (o.linien || []).forEach(([p, q, st]) => { svg += `<line x1="${f(S[p][0])}" y1="${f(S[p][1])}" x2="${f(S[q][0])}" y2="${f(S[q][1])}" stroke="${st === "hilf" ? "#64748b" : st === "rot" ? "#dc2626" : "#1e3a8a"}" stroke-width="${st === "hilf" ? 1.5 : 2}"${st === "hilf" || st === "verdeckt" ? ' stroke-dasharray="5 4"' : ""}/>`; });
+    (o.rechte || []).forEach(([v, p, q]) => {
+      const u1 = norm([S[p][0] - S[v][0], S[p][1] - S[v][1]]), u2 = norm([S[q][0] - S[v][0], S[q][1] - S[v][1]]), r = 11;
+      svg += `<path d="M ${f(S[v][0] + u1[0] * r)} ${f(S[v][1] + u1[1] * r)} L ${f(S[v][0] + (u1[0] + u2[0]) * r)} ${f(S[v][1] + (u1[1] + u2[1]) * r)} L ${f(S[v][0] + u2[0] * r)} ${f(S[v][1] + u2[1] * r)}" fill="none" stroke="#1e3a8a" stroke-width="1.3"/>`;
+    });
+    (o.winkel || []).forEach(([v, p, q, txt, rr]) => {
+      const v1 = norm([S[p][0] - S[v][0], S[p][1] - S[v][1]]), v2 = norm([S[q][0] - S[v][0], S[q][1] - S[v][1]]), r = rr || 24;
+      const cross = v1[0] * v2[1] - v1[1] * v2[0], bi = norm([v1[0] + v2[0], v1[1] + v2[1]]);
+      svg += `<path d="M ${f(S[v][0] + v1[0] * r)} ${f(S[v][1] + v1[1] * r)} A ${r} ${r} 0 0 ${cross > 0 ? 1 : 0} ${f(S[v][0] + v2[0] * r)} ${f(S[v][1] + v2[1] * r)}" fill="none" stroke="#dc2626" stroke-width="2"/>`;
+      svg += `<text x="${f(S[v][0] + bi[0] * (r + 16))}" y="${f(S[v][1] + bi[1] * (r + 16) + 5)}" font-size="13" font-weight="bold" text-anchor="middle" fill="#dc2626" stroke="white" stroke-width="3" paint-order="stroke">${txt}</text>`;
+    });
+    (o.seiten || []).forEach(([p, q, txt, seite]) => {
+      const m = [(S[p][0] + S[q][0]) / 2, (S[p][1] + S[q][1]) / 2], d = norm([S[q][0] - S[p][0], S[q][1] - S[p][1]]);
+      let n = [-d[1], d[0]]; const weg = (m[0] - M[0]) * n[0] + (m[1] - M[1]) * n[1];
+      if ((seite || 0) === 0 ? weg < 0 : seite < 0) n = [-n[0], -n[1]];
+      const t2 = String(txt).replace(/_([a-z])/g, '<tspan baseline-shift="sub" font-size="10">$1</tspan>');
+      svg += `<text x="${f(m[0] + n[0] * 15)}" y="${f(m[1] + n[1] * 15 + 5)}" font-size="13" font-weight="bold" text-anchor="middle" fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke">${t2}</text>`;
+    });
+    (o.namen || []).forEach((k) => { const n = norm([S[k][0] - M[0], S[k][1] - M[1]]); svg += `<text x="${f(S[k][0] + n[0] * 13)}" y="${f(S[k][1] + n[1] * 13 + 5)}" font-size="12" fill="#64748b" text-anchor="middle">${k}</text>`; });
+    return svg + "</svg>";
+  }
+  // Turm, von zwei Standpunkten A (weiter weg) und B (näher) angepeilt
+  function turmSVG(d, a1, a2, h, beschr) {
+    const x = h / Math.tan(a2 * RAD);
+    return figurSVG2({ punkte: { A: [0, 0], B: [d, 0], F: [d + x, 0], S: [d + x, h] }, flaechen: [["A", "F", "S"]],
+      linien: [["A", "F"], ["F", "S"], ["A", "S", "hilf"], ["B", "S", "hilf"]], rechte: [["F", "S", "A"]],
+      winkel: [["A", "F", "S", `${a1}°`, 34], ["B", "F", "S", `${a2}°`, 22]],
+      seiten: [["A", "B", beschr.d, 1], ["F", "S", beschr.h], ["B", "F", beschr.x || "", 1]] });
+  }
+  function pyramideSVG(beschr) {
+    // Kavalierperspektive: Tiefe unter 45°, halbe Länge
+    const t = 0.45, P = { A: [0, 0], B: [6, 0], C: [6 + 6 * t, 6 * t], D: [6 * t, 6 * t] }, Mi = [3 + 3 * t, 3 * t];
+    const pkt = Object.assign({}, P, { M: Mi, S: [Mi[0], 7.2], H: [3, 0] });
+    return figurSVG2({ punkte: pkt, flaechen: [["A", "B", "S"]], fuellung: "#eff6ff",
+      linien: [["A", "B"], ["B", "C"], ["C", "D", "verdeckt"], ["D", "A", "verdeckt"], ["A", "S"], ["B", "S"], ["C", "S"], ["D", "S", "verdeckt"],
+        ["M", "S", "hilf"], ["M", "H", "hilf"], ["M", "A", "hilf"], ["H", "S", "rot"]],
+      winkel: [["H", "M", "S", "ε", 14], ["A", "M", "S", "φ", 26]],
+      seiten: [["A", "B", beschr.a], ["M", "S", beschr.h, 1], ["H", "S", beschr.hs, 1]], namen: ["A", "B", "C", "D", "S"] });
+  }
+  function trapezSVG(a, d, al, be, beschr) {
+    const h = d * Math.sin(al * RAD), xD = d * Math.cos(al * RAD), xC = a - h / Math.tan(be * RAD);
+    return figurSVG2({ punkte: { A: [0, 0], B: [a, 0], C: [xC, h], D: [xD, h], E: [xD, 0] }, flaechen: [["A", "B", "C", "D"]],
+      linien: [["A", "B"], ["B", "C"], ["C", "D"], ["D", "A"], ["D", "E", "hilf"]], rechte: [["E", "D", "B"]],
+      winkel: [["A", "B", "D", `${al}°`], ["B", "C", "A", `${be}°`]],
+      seiten: [["A", "B", beschr.a], ["A", "D", beschr.d], ["B", "C", beschr.b], ["D", "C", beschr.c], ["D", "E", beschr.h, -1]], namen: ["A", "B", "C", "D"] });
+  }
+  function gleichschenkligSVG(c, be, beschr) {
+    const h = (c / 2) * Math.tan(be * RAD);
+    return figurSVG2({ punkte: { A: [0, 0], B: [c, 0], C: [c / 2, h], F: [c / 2, 0] }, flaechen: [["A", "B", "C"]],
+      linien: [["A", "B"], ["B", "C"], ["C", "A"], ["C", "F", "hilf"]], rechte: [["F", "C", "B"]],
+      winkel: [["B", "C", "A", `${be}°`]], seiten: [["A", "B", beschr.c], ["B", "C", beschr.a], ["C", "F", beschr.h, 1]], namen: ["A", "B", "C"] });
+  }
+  const TRIPEL_PRIM = [[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25], [20, 21, 29]];
+  function gen_trig_9() {
+    const sub = choice(["turm", "turm", "pyramide", "pyramide", "trapez", "gleichschenklig", "exakt"]), n = choice(NAMEN);
+    if (sub === "turm") {
+      const d = choice([20, 25, 30, 40, 50, 60]), a1 = randInt(20, 40), a2 = randInt(a1 + 10, Math.min(a1 + 25, 70));
+      const t1 = Math.tan(a1 * RAD), t2 = Math.tan(a2 * RAD), h = (d * t1 * t2) / (t2 - t1), x = h / t2;
+      const obj = choice(["Kirchturm", "Leuchtturm", "Funkmast", "Baum"]);
+      return textTask("trigonometrie", 9, sub,
+        T(`${n} sieht die Spitze eines ${obj}s unter einem Höhenwinkel von ${a1}°. Nach ${d} m auf ebenem Boden direkt auf den ${obj} zu beträgt der Höhenwinkel ${a2}°.`),
+        T("Wie hoch ist der " + obj + ", und wie weit ist " + n + " am zweiten Standpunkt noch von ihm entfernt? (Augenhöhe vernachlässigen)"), [
+          { label: "Höhe in m (1 Nachkommastelle)", kind: "number", answer: r1(h), tol: 0.06 },
+          { label: "Entfernung vom zweiten Standpunkt in m (1 Nachkommastelle)", kind: "number", answer: r1(x), tol: 0.06 + 0.05 / t2 }
+        ], [
+          { label: "Zwei rechtwinklige Dreiecke mit derselben Höhe h; x = Entfernung vom zweiten Standpunkt" },
+          { left: `\\tan(${a2}°) = \\dfrac{h}{x} \\qquad \\tan(${a1}°) = \\dfrac{h}{x + ${d}}`, right: "" },
+          { label: "Beide Gleichungen nach h auflösen und gleichsetzen" },
+          { left: `x\\cdot \\tan(${a2}°) = (x + ${d})\\cdot \\tan(${a1}°)`, right: "" },
+          { left: `x = \\dfrac{${d}\\cdot \\tan(${a1}°)}{\\tan(${a2}°) - \\tan(${a1}°)} \\approx ${fmt1(x)}`, right: "" },
+          { label: "Höhe aus dem kleinen Dreieck (mit ungerundetem x weiterrechnen)" },
+          { left: `h = x\\cdot \\tan(${a2}°) \\approx ${fmt1(h)}`, right: "" }
+        ], { graph: turmSVG(d, a1, a2, h, { d: `${d} m`, h: "h = ?", x: "x" }), dataExtra: { d, a1, a2, h, x } });
+    }
+    if (sub === "pyramide") {
+      const a = choice([4, 5, 6, 7, 8, 8.2, 9, 10, 12]), h = choice([5, 6, 7, 7.5, 8, 9, 10, 12]);
+      const hs = Math.hypot(h, a / 2), O = a * a + 2 * a * hs, eps = Math.atan(h / (a / 2)) / RAD, phi = Math.atan(h / (a * Math.SQRT2 / 2)) / RAD;
+      return textTask("trigonometrie", 9, sub,
+        T(`Eine gerade quadratische Pyramide hat die Grundkante a = ${fmtNum(a)} cm und die Höhe h = ${fmtNum(h)} cm.`),
+        T("Berechne die Höhe hₛ einer Seitenfläche, die Oberfläche, den Neigungswinkel ε der Seitenfläche und den Neigungswinkel φ der Seitenkante gegen die Grundfläche."), [
+          { label: "Seitenhöhe hₛ in cm (1 Nachkommastelle)", kind: "number", answer: r1(hs), tol: 0.06 },
+          { label: "Oberfläche in cm² (1 Nachkommastelle)", kind: "number", answer: r1(O), tol: 0.06 + a * 0.1 },
+          { label: "ε in Grad (1 Nachkommastelle)", kind: "number", answer: r1(eps), tol: 0.06 },
+          { label: "φ in Grad (1 Nachkommastelle)", kind: "number", answer: r1(phi), tol: 0.06 }
+        ], [
+          { label: "Seitenhöhe: rechtwinkliges Dreieck aus h, a/2 und hₛ (Pythagoras)" },
+          { left: `h_s = \\sqrt{${fmtNum(h)}^{2} + ${fmtNum(a / 2)}^{2}} \\approx ${fmtNum(r2(hs))}`, right: "" },
+          { label: "Oberfläche = Grundfläche + 4 Dreiecke" },
+          { left: `O = ${fmtNum(a)}^{2} + 4\\cdot \\dfrac{1}{2}\\cdot ${fmtNum(a)}\\cdot ${fmtNum(r2(hs))} \\approx ${fmt1(O)}`, right: "" },
+          { label: "Neigungswinkel der Seitenfläche: im selben Dreieck, gegenüber von h liegt ε, anliegend a/2" },
+          { left: `\\tan(\\varepsilon) = \\dfrac{${fmtNum(h)}}{${fmtNum(a / 2)}} \\;\\Rightarrow\\; \\varepsilon \\approx ${fmt1(eps)}°`, right: "" },
+          { label: "Neigungswinkel der Seitenkante: anliegend ist die halbe Diagonale d/2 = a·√2 : 2" },
+          { left: `\\dfrac{d}{2} = \\dfrac{${fmtNum(a)}\\cdot \\sqrt{2}}{2} \\approx ${fmtNum(r2(a * Math.SQRT2 / 2))} \\;\\Rightarrow\\; \\tan(\\varphi) = \\dfrac{${fmtNum(h)}}{${fmtNum(r2(a * Math.SQRT2 / 2))}} \\;\\Rightarrow\\; \\varphi \\approx ${fmt1(phi)}°`, right: "" }
+        ], { graph: pyramideSVG({ a: `a = ${fmtNum(a)}`, h: `h = ${fmtNum(h)}`, hs: "h_s" }), dataExtra: { a, h, hs, O, eps, phi } });
+    }
+    if (sub === "trapez") {
+      for (;;) {
+        const a = choice([6, 7, 7.4, 8, 9, 10, 12]), d = choice([3, 3.6, 4, 4.5, 5, 6]), al = randInt(50, 75), be = randInt(40, 70);
+        const h = d * Math.sin(al * RAD), b = h / Math.sin(be * RAD), c = a - d * Math.cos(al * RAD) - b * Math.cos(be * RAD);
+        if (c < 1.5) continue;
+        return textTask("trigonometrie", 9, sub,
+          T(`Im Trapez ABCD (AB parallel zu CD) sind gegeben: a = AB = ${fmtNum(a)} cm, d = AD = ${fmtNum(d)} cm, α = ${al}° und β = ${be}°.`),
+          T("Berechne die Höhe h, die Seite b = BC und die Seite c = CD."), [
+            { label: "h in cm (1 Nachkommastelle)", kind: "number", answer: r1(h), tol: 0.06 },
+            { label: "b in cm (1 Nachkommastelle)", kind: "number", answer: r1(b), tol: 0.06 + 0.05 / Math.sin(be * RAD) },
+            { label: "c in cm (1 Nachkommastelle)", kind: "number", answer: r1(c), tol: 0.2 }
+          ], [
+            { label: "Höhe von D aus fällen: rechtwinkliges Dreieck mit Hypotenuse d" },
+            { left: `h = ${fmtNum(d)}\\cdot \\sin(${al}°) \\approx ${fmtNum(r2(h))}`, right: "" },
+            { label: "Rechtwinkliges Dreieck bei B: h liegt β gegenüber, b ist Hypotenuse" },
+            { left: `b = \\dfrac{h}{\\sin(${be}°)} \\approx ${fmtNum(r2(b))}`, right: "" },
+            { label: "c = a minus die beiden Randstücke unter den schrägen Seiten" },
+            { left: `c = ${fmtNum(a)} - ${fmtNum(d)}\\cdot \\cos(${al}°) - b\\cdot \\cos(${be}°) \\approx ${fmtNum(a)} - ${fmtNum(r2(d * Math.cos(al * RAD)))} - ${fmtNum(r2(b * Math.cos(be * RAD)))} \\approx ${fmt1(c)}`, right: "" }
+          ], { graph: trapezSVG(a, d, al, be, { a: `${fmtNum(a)} cm`, d: `${fmtNum(d)} cm`, b: "b = ?", c: "c = ?", h: "h" }), dataExtra: { a, d, al, be, h, b, c } });
+      }
+    }
+    if (sub === "gleichschenklig") {
+      const c = choice([6, 8, 9, 10, 12, 40, 60, 80]), be = randInt(35, 70), ein = c >= 40 ? "cm" : "cm";
+      const s = (c / 2) / Math.cos(be * RAD), h = (c / 2) * Math.tan(be * RAD), A = (c * h) / 2;
+      return textTask("trigonometrie", 9, sub,
+        T(`Ein gleichschenkliges Dreieck ABC hat die Basis c = AB = ${c} ${ein} und die Basiswinkel α = β = ${be}°.`),
+        T("Berechne die Schenkellänge a = b, die Höhe h_c und den Flächeninhalt."), [
+          { label: `a in ${ein} (1 Nachkommastelle)`, kind: "number", answer: r1(s), tol: 0.06 },
+          { label: `Höhe zur Basis in ${ein} (1 Nachkommastelle)`, kind: "number", answer: r1(h), tol: 0.06 },
+          { label: `Fläche in ${ein}² (1 Nachkommastelle)`, kind: "number", answer: r1(A), tol: 0.06 + c * 0.025 }
+        ], [
+          { label: "Die Höhe zur Basis halbiert die Basis: rechtwinkliges Dreieck mit c/2 als Ankathete von β" },
+          { left: `\\cos(${be}°) = \\dfrac{${fmtNum(c / 2)}}{a} \\;\\Rightarrow\\; a = \\dfrac{${fmtNum(c / 2)}}{\\cos(${be}°)} \\approx ${fmtNum(r2(s))}`, right: "" },
+          { label: "Höhe als Gegenkathete von β" },
+          { left: `h_c = ${fmtNum(c / 2)}\\cdot \\tan(${be}°) \\approx ${fmtNum(r2(h))}`, right: "" },
+          { label: "Fläche = Grundseite · Höhe : 2" },
+          { left: `A = \\dfrac{${c}\\cdot ${fmtNum(r2(h))}}{2} \\approx ${fmt1(A)}`, right: "" }
+        ], { graph: gleichschenkligSVG(c, be, { c: `${c} ${ein}`, a: "a = ?", h: "h_c" }), dataExtra: { c, be, s, h, A } });
+    }
+    // exakt: aus tan(α) = p/q ohne Taschenrechner sin(α) und cos(α) bestimmen
+    let [p, q, r] = choice(TRIPEL_PRIM); if (Math.random() < 0.5) [p, q] = [q, p];
+    return textTask("trigonometrie", 9, sub,
+      `${T("In einem rechtwinkligen Dreieck gilt für den spitzen Winkel α:")}\\;\\; \\tan(\\alpha) = \\dfrac{${p}}{${q}}`,
+      T("Bestimme sin(α) und cos(α) exakt als Bruch – ohne Taschenrechner."), [
+        { label: "sin(α)", kind: "fraction", answer: { num: p, den: r } },
+        { label: "cos(α)", kind: "fraction", answer: { num: q, den: r } }
+      ], [
+        { label: `tan(α) = Gegenkathete : Ankathete – wähle ein passendes Dreieck mit Gegenkathete ${p} und Ankathete ${q}` },
+        { left: `${T("Hypotenuse")} = \\sqrt{${p}^{2} + ${q}^{2}} = \\sqrt{${p * p + q * q}} = ${r}`, right: "" },
+        { label: "Sinus und Kosinus mit dieser Hypotenuse" },
+        { left: `\\sin(\\alpha) = \\dfrac{${p}}{${r}} \\qquad \\cos(\\alpha) = \\dfrac{${q}}{${r}}`, right: "" }
+      ], { dataExtra: { p, q, r }, noCalculator: true });
+  }
+
   TOPICS.trigonometrie = {
       name: "Trigonometrie",
       grade: "Kl. 9–10",
@@ -5999,6 +6792,7 @@ const KLAUSUR_PROBLEMS = [
         { id: 3, name: "Seite berechnen", grade: "Kl. 9–10", calculatorHint: "Taschenrechner im Grad-Modus (DEG)", generate: gen_trig_3, check: check_trig_3, steps: steps_trig_3 },
         { id: 4, name: "Winkel berechnen", grade: "Kl. 9–10", calculatorHint: "Taschenrechner im Grad-Modus (DEG)", generate: gen_trig_4, check: check_trig_4, steps: steps_trig_4 },
         { id: 5, name: "Textaufgaben", grade: "Kl. 9–10", calculatorHint: "Taschenrechner im Grad-Modus (DEG)", generate: gen_trig_5, check: check_textaufgabe, steps: steps_textaufgabe },
+        { id: 9, name: "Mehrschrittige Aufgaben", grade: "Kl. 10", calculatorHint: "Taschenrechner im Grad-Modus (DEG); Zwischenergebnisse ungerundet weiterverwenden", generate: gen_trig_9, check: check_textaufgabe, steps: steps_textaufgabe },
         { id: 6, name: "Sinussatz", grade: "Kl. 10", calculatorHint: "Taschenrechner im Grad-Modus (DEG)", generate: gen_trig_6, check: check_trig_6, steps: steps_trig_6 },
         { id: 7, name: "Kosinussatz", grade: "Kl. 10", calculatorHint: "Taschenrechner im Grad-Modus (DEG)", generate: gen_trig_7, check: check_trig_7, steps: steps_trig_7 },
         { id: 8, name: "Allgemeine Dreiecke im Alltag", grade: "Kl. 10", calculatorHint: "Taschenrechner im Grad-Modus (DEG)", generate: gen_trig_8, check: check_textaufgabe, steps: steps_textaufgabe }
@@ -6031,6 +6825,38 @@ const KLAUSUR_PROBLEMS = [
   erklGrafik = function (art) {
     if (art === "dreieck") return dreieckSVG({ a: 3, b: 4, seiten: { a: "Gegenkathete", b: "Ankathete", c: "Hypotenuse" }, winkel: "α", rot: 0, spiegel: false });
     return erklGrafikT(art);
+  };
+
+  Object.assign(ERKL, {
+    "trigonometrie/9": E("Mehrschrittige Aufgaben",
+      [T("1. Skizze machen und alle rechtwinkligen Teildreiecke markieren (Höhe einzeichnen!)."),
+       T("2. Mit dem Teildreieck beginnen, in dem schon zwei Stücke bekannt sind."),
+       T("3. Das Ergebnis ist ein Stück im nächsten Teildreieck – so Schritt für Schritt weiter."),
+       T("4. Zwischenergebnisse ungerundet im Taschenrechner weiterverwenden, erst am Ende runden."),
+       T("Zwei Standpunkte: Beide Dreiecke haben dieselbe Höhe h – zwei Gleichungen aufstellen und gleichsetzen.")],
+      [{ left: T("Höhenwinkel 30° und nach 50 m 45°:"), right: "" },
+       { left: `\\tan(45°) = \\dfrac{h}{x},\\;\\; \\tan(30°) = \\dfrac{h}{x + 50} \\;\\Rightarrow\\; x = \\dfrac{50\\cdot \\tan(30°)}{\\tan(45°) - \\tan(30°)} \\approx 68,3`, right: "" },
+       { left: `h = x\\cdot \\tan(45°) \\approx 68,3\\text{ m}`, right: "" }],
+      [T("Die 50 m als Entfernung zum Turm nehmen – sie ist nur der Abstand der beiden Standpunkte."),
+       T("Bei der Pyramide Neigungswinkel der Seitenfläche (an der Kantenmitte, a/2) und der Seitenkante (an der Ecke, halbe Diagonale) verwechseln."),
+       T("Mit gerundeten Zwischenergebnissen weiterrechnen – das Endergebnis weicht dann ab.")], "t9")
+  });
+  const erklGrafikT9 = erklGrafik;
+  erklGrafik = function (art) {
+    if (art === "t9") { const t1 = Math.tan(30 * RAD), h = (50 * t1 * 1) / (1 - t1); return turmSVG(50, 30, 45, h, { d: "50 m", h: "h ≈ 68,3 m", x: "x ≈ 68,3 m" }); }
+    return erklGrafikT9(art);
+  };
+  H.standpunktAbstand = "Die gegebene Strecke ist nur der Abstand der beiden Standpunkte, nicht die Entfernung zum Fuß – stelle zwei Gleichungen mit derselben Höhe auf.";
+  H.epsPhi = "Seitenfläche und Seitenkante verwechselt? Seitenfläche: an der Kantenmitte (a/2); Seitenkante: an der Ecke (halbe Diagonale).";
+  H.ungerundet = "Fast – rechne mit den ungerundeten Zwischenergebnissen weiter.";
+  H.sinCosExakt = "Sinus und Kosinus vertauscht? Sinus = Gegenkathete : Hypotenuse.";
+  DIAG["trigonometrie/9"] = (t, i, w) => {
+    if (!w) return null; const d = t.dataExtra, s = t.subtype;
+    if (s === "turm" && i === 0 && (nah(w.v, d.d * Math.tan(d.a1 * RAD), 0.02) || nah(w.v, d.d * Math.tan(d.a2 * RAD), 0.02))) return H.standpunktAbstand;
+    if (s === "pyramide" && ((i === 2 && nah(w.v, d.phi, 0.005)) || (i === 3 && nah(w.v, d.eps, 0.005)))) return H.epsPhi;
+    if (s === "exakt" && ((i === 0 && nah(w.v, d.q / d.r)) || (i === 1 && nah(w.v, d.p / d.r)))) return H.sinCosExakt;
+    if (s !== "exakt" && nah(w.v, t.answer[i], 0.03)) return H.ungerundet;
+    return null;
   };
 
   // --- Fehlerdiagnose: Trigonometrie ---
@@ -6122,6 +6948,11 @@ const KLAUSUR_PROBLEMS = [
           [{ label: "Musterskizze" }], dreieckSVG({ a: Math.sin(w * RAD), b: Math.cos(w * RAD), seiten: { a: "Wand: h = ?", b: "Boden", c: `Leiter ${L} m` }, winkel: "α", winkelText: `${w}°`, rot: 0, spiegel: true, ecken: false }))
       ] };
     } },
+    { key: "mehrschritt", gebiet: "rechtwinklig", teil: "B", afb: 3, titel: "Zusammengesetzte Figuren", baue: () => {
+      const t = stufenTeil("trigonometrie", 9, (x) => x.subtype !== "exakt");
+      return { kontext: "", graph: t.task.graph, teile: [t] };
+    } },
+    { key: "exakt", gebiet: "rechtwinklig", teil: "A", afb: 2, titel: "Exakte Werte ohne Taschenrechner", baue: () => ({ kontext: "", teile: [stufenTeil("trigonometrie", 9, (x) => x.subtype === "exakt")] }) },
     { key: "alltag", gebiet: "rechtwinklig", teil: "B", afb: 2, titel: "Trigonometrie im Alltag", baue: () => {
       const a = stufenTeil("trigonometrie", 5); let b; do { b = stufenTeil("trigonometrie", 5); } while (b.task.subtype === a.task.subtype);
       return { kontext: "", teile: [a, b] };
@@ -6404,7 +7235,7 @@ const KLAUSUR_PROBLEMS = [
     }
     const a = nz(-9, 9);
     if (sub === "rueckwaerts") return { topic: "terme_gleichungen", level: 6, subtype: sub, signed: true, prompt: `x^{2} ${a > 0 ? "+" : "-"} ${Math.abs(2 * a)}x + ${a * a}`, promptText: "rückwärts",
-      question: `\\text{Schreibe als Quadrat:}\\;\\; (x + \\;?)^{2}`, numFields: 1, fieldLabels: ["Zahl in der Klammer (mit Vorzeichen)"], answer: [a], data: { a } };
+      question: `\\text{Schreibe als Quadrat:}\\;\\; (x ${a > 0 ? "+" : "-"} \\;?)^{2}`, numFields: 1, fieldLabels: ["Zahl in der Klammer"], fieldSigned: [false], answer: [Math.abs(a)], data: { a } };
     const b = Math.abs(a);
     return { topic: "terme_gleichungen", level: 6, subtype: sub, prompt: `x^{2} - ${b * b}`, promptText: "dritte rückwärts",
       question: `\\text{Faktorisiere:}\\;\\; (x + \\;?)(x - \\;?)`, numFields: 1, fieldLabels: ["Zahl in den Klammern"], answer: [b], data: { a: b } };
@@ -8040,6 +8871,23 @@ const KLAUSUR_PROBLEMS = [
     statsCache[k] = s;
     persistStats();
   }
+  // ---------- Zeitmessung in Serien (5 oder 10 Aufgaben am Stück) ----------
+  // Gespeichert unter "__zeiten": { "<thema>-<stufe>": [{ g: 5|10, ms, p: Punkte, d: "JJJJ-MM-TT" }, …] }
+  // und die gewählte Seriengröße unter "__serie": { g: 5|10 }.
+  const ZEIT_KEY = "__zeiten", SERIE_KEY = "__serie", MAX_SERIEN = 200;
+  function serieGroesse() { const s = statsCache[SERIE_KEY]; return s && s.g === 10 ? 10 : 5; }
+  function setzeSerieGroesse(g) { statsCache[SERIE_KEY] = { g: g === 10 ? 10 : 5 }; persistStats(); }
+  function speichereSerie(topicKey, levelId, g, ms, punkte) {
+    const z = statsCache[ZEIT_KEY] || (statsCache[ZEIT_KEY] = {}), k = statKey(topicKey, levelId);
+    z[k] = (z[k] || []).concat([{ g, ms: Math.max(0, Math.round(ms)), p: punkte, d: new Date().toISOString().slice(0, 10) }]).slice(-MAX_SERIEN);
+    persistStats();
+  }
+  // Rangfolge: mehr Punkte zuerst, bei Gleichstand die kürzere Zeit
+  const serienRang = (a, b) => b.p - a.p || a.ms - b.ms;
+  function serienVon(topicKey, levelId, g) { return (((statsCache[ZEIT_KEY] || {})[statKey(topicKey, levelId)]) || []).filter((e) => e.g === g).slice().sort(serienRang); }
+  function zeitText(ms) { const s = Math.round(ms / 1000), m = Math.floor(s / 60); return `${m}:${String(s % 60).padStart(2, "0")} min`; }
+  const punkteText2 = (p) => String(p).replace(".", ",");
+
   // "Sitzt": mindestens 8 von 10 Punkten in den letzten 10 Aufgaben
   function stufeSitzt(s) {
     const r = s.recent || [];
@@ -8104,6 +8952,7 @@ const KLAUSUR_PROBLEMS = [
 
   // ---------- Rendering: Startseite ----------
   function renderHome() {
+    state.serie = null; // angefangene Serie verfällt
     app.innerHTML = "";
     app.appendChild(el("header", { class: "topbar" }, [
       text("h1", "", "Mathe-Übungstool")
@@ -8144,6 +8993,7 @@ const KLAUSUR_PROBLEMS = [
   // ---------- Rendering: Stufenauswahl ----------
   function renderLevels() {
     const topic = ML.TOPICS[state.topicKey];
+    state.serie = null; // Stufe verlassen: nur abgeschlossene Serien zählen
     app.innerHTML = "";
     app.appendChild(el("header", { class: "topbar" }, [
       el("button", { class: "backbtn", onclick: () => { state.view = "home"; render(); } }, [document.createTextNode("←")]),
@@ -8182,6 +9032,35 @@ const KLAUSUR_PROBLEMS = [
     if (letzte) kaBox.appendChild(text("div", "exam-small", `Letztes Ergebnis: Note ${letzte.note} (${letzte.punkte} von ${letzte.gesamt} Punkten, ${letzte.datum.split("-").reverse().join(".")})`));
     kaBox.appendChild(el("div", { class: "btn-row" }, [el("button", { class: "btn", onclick: () => { state.view = "exam-setup"; render(); } }, [document.createTextNode("Klassenarbeit einrichten")])]));
     app.appendChild(kaBox);
+    app.appendChild(bestenlisteKarte(topic));
+  }
+
+  // ---------- Zeitmessung: Seriengröße wählen und Bestenliste pro Stufe ----------
+  function bestenlisteKarte(topic) {
+    const g = serieGroesse(), box = el("div", { class: "card bestenliste" });
+    box.appendChild(text("h3", "", "⏱ Bestenliste"));
+    box.appendChild(text("div", "exam-small", `In jeder Stufe wird die Zeit für ${g} Aufgaben am Stück gemessen. Eine Aufgabe zählt, sobald sie geprüft oder der Rechenweg geöffnet wurde. Wer die Stufe vorher verlässt, verliert nur die angefangene Serie. Rangfolge: erst Punkte, dann Zeit.`));
+    const wahl = el("div", { class: "choice-btn-group serie-wahl" });
+    [5, 10].forEach((n) => wahl.appendChild(el("button", { type: "button", class: "choice-btn" + (n === g ? " selected" : ""), onclick: () => { setzeSerieGroesse(n); render(); } }, [document.createTextNode(`${n} Aufgaben`)])));
+    box.appendChild(el("div", { class: "field-row" }, [text("label", "", "Seriengröße"), wahl]));
+    const zeilen = topic.levels.map((l) => ({ l, liste: serienVon(state.topicKey, l.id, g) })).filter((z) => z.liste.length);
+    if (!zeilen.length) { box.appendChild(text("div", "exam-small", `Noch keine ${g}er-Serie abgeschlossen.`)); return box; }
+    const tab = el("table", { class: "besten-tab" });
+    const kurzDatum = (d) => { const [j, m, t] = d.split("-"); return `${t}.${m}.${j.slice(2)}`; };
+    tab.appendChild(el("tr", {}, ["Stufe", "Zeit", "Punkte", "Datum"].map((h) => text("th", "", h))));
+    zeilen.forEach(({ l, liste }) => {
+      const b = liste[0];
+      tab.appendChild(el("tr", {}, [text("td", "", l.name), text("td", "nowrap", zeitText(b.ms).replace(" min", "")), text("td", "nowrap", `${punkteText2(b.p)}/${g}`), text("td", "nowrap", kurzDatum(b.d))]));
+    });
+    box.appendChild(tab);
+    zeilen.forEach(({ l, liste }) => {
+      const d = el("details", { class: "besten-details" });
+      d.appendChild(el("summary", {}, [document.createTextNode(`${l.name}: Top ${Math.min(5, liste.length)} von ${liste.length} ${liste.length === 1 ? "Serie" : "Serien"}`)]));
+      const ol = el("ol", {});
+      liste.slice(0, 5).forEach((e) => ol.appendChild(text("li", "", `${zeitText(e.ms)} · ${punkteText2(e.p)}/${g} Punkte · ${e.d.split("-").reverse().join(".")}`)));
+      d.appendChild(ol); box.appendChild(d);
+    });
+    return box;
   }
 
   // ---------- Lernstand sichern und übertragen (ohne Server, alles lokal) ----------
@@ -8225,6 +9104,18 @@ const KLAUSUR_PROBLEMS = [
         if (!ML.TOPICS[k.slice(10)]) continue;
         if (!ganz(v.note, 1, 6) || typeof v.pct !== "number" || v.pct < 0 || v.pct > 100 || !/^\d{4}-\d{2}-\d{2}$/.test(String(v.datum))) return { fehler: `Ungültiges Klassenarbeits-Ergebnis „${k}“.` };
         rein[k] = { pct: v.pct, note: v.note, punkte: Number(v.punkte) || 0, gesamt: Number(v.gesamt) || 0, datum: v.datum };
+      } else if (k === "__zeiten") {
+        const z = {};
+        for (const [stufe, liste] of Object.entries(v)) {
+          const mm = /^([a-z_]+)-(\d+)$/.exec(stufe);
+          if (!mm || !Array.isArray(liste) || liste.length > 200) return { fehler: "Ungültige Zeitmessungen." };
+          if (!ML.TOPICS[mm[1]] || !ML.TOPICS[mm[1]].levels.some((l) => l.id === +mm[2])) continue;
+          for (const e of liste) if (!e || ![5, 10].includes(e.g) || !ganz(e.ms, 0, 864e5) || typeof e.p !== "number" || e.p < 0 || e.p > e.g || (e.p * 2) % 1 || !/^\d{4}-\d{2}-\d{2}$/.test(String(e.d))) return { fehler: `Ungültige Zeitmessung bei „${stufe}“.` };
+          z[stufe] = liste.map((e) => ({ g: e.g, ms: e.ms, p: e.p, d: e.d }));
+        }
+        rein[k] = z;
+      } else if (k === "__serie") {
+        rein[k] = { g: v.g === 10 ? 10 : 5 };
       }
       // unbekannte Einträge werden ignoriert
     }
@@ -8376,9 +9267,9 @@ const KLAUSUR_PROBLEMS = [
             wrap.appendChild(vIn);
           }
           const sync = () => {
-            const strip = (s) => s.trim().replace(/^[-−]/, "");
+            const strip = (s) => s.trim().replace(/^[-−–+]/, "");
             // Minus, das jemand direkt eintippt (z. B. am PC), zählt ebenfalls
-            const typedMinus = parts.some(p => /^[-−]/.test(p.value.trim()));
+            const typedMinus = parts.some(p => /^[-−–]/.test(p.value.trim()));
             const neg = negative !== typedMinus;
             const z = strip(parts[0].value);
             let v = z;
@@ -8440,12 +9331,31 @@ const KLAUSUR_PROBLEMS = [
       text("h1", "", level.name)
     ]));
 
+    // Zeitmessung: Serie dieser Stufe fortsetzen oder neu beginnen (die Uhr startet mit der ersten Aufgabe der Serie)
+    const serienKey = state.topicKey + "-" + state.levelId;
+    if (!state.serie || state.serie.key !== serienKey) state.serie = { key: serienKey, g: serieGroesse(), start: null, n: 0, p: 0 };
+    if (state.serie.start === null) state.serie.start = Date.now();
+    const serieZaehler = el("span", { class: "serie-zaehler", title: "Zeitmessung: Aufgaben in dieser Serie" });
+    let serieFertig = null; // Zeit der gerade abgeschlossenen Serie (nur bis zur nächsten Aufgabe angezeigt)
+    const zeigeSerie = () => { serieZaehler.textContent = serieFertig ? `⏱ Serie geschafft: ${serieFertig}` : `⏱ ${state.serie.n}/${state.serie.g}`; };
+    function serieErledigt(punkte) { // eine Aufgabe ist erledigt (erstes Prüfen oder Rechenweg)
+      const S = state.serie; if (!S || S.key !== serienKey) return;
+      S.n += 1; S.p += punkte;
+      if (S.n >= S.g) {
+        const ms = Date.now() - S.start;
+        speichereSerie(state.topicKey, state.levelId, S.g, ms, S.p);
+        serieFertig = `${S.g} Aufgaben in ${zeitText(ms)} (${punkteText2(S.p)} von ${S.g} Punkten)`;
+        state.serie = { key: serienKey, g: serieGroesse(), start: null, n: 0, p: 0 };
+      }
+      zeigeSerie();
+    }
     const statsline = el("div", { class: "statsline" });
     const empfehlung = el("div", { class: "empfehlung-holder" });
     function aktualisiereStatistik() {
       const s = getStat(state.topicKey, state.levelId);
       statsline.innerHTML = "";
       statsline.appendChild(el("span", {}, [document.createTextNode("Bisher in dieser Stufe: "), el("strong", {}, [document.createTextNode(`${s.correct}/${s.attempts} richtig`)])]));
+      zeigeSerie(); statsline.appendChild(serieZaehler);
       empfehlung.innerHTML = "";
       if (!stufeSitzt(s)) return;
       const idx = topic.levels.findIndex((l) => l.id === state.levelId);
@@ -8508,6 +9418,7 @@ const KLAUSUR_PROBLEMS = [
         recordAttempt(state.topicKey, state.levelId, false, 0);
         merkeWiederholung(state.topicKey, state.levelId, task);
         state.checked = true;
+        serieErledigt(0);
         aktualisiereStatistik();
       }
       state.showSteps = true;
@@ -8624,6 +9535,7 @@ const KLAUSUR_PROBLEMS = [
       if (!state.checked) {
         const punkte = result.correct ? (state.tipsShown ? 0.5 : 1) : 0;
         recordAttempt(state.topicKey, state.levelId, result.correct, punkte);
+        serieErledigt(punkte);
         if (!result.correct) merkeWiederholung(state.topicKey, state.levelId, task);
         else if (!state.tipsShown) wiederholungGeschafft(state.topicKey, state.levelId, task);
         state.checked = true;
