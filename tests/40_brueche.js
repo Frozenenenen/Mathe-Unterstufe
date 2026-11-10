@@ -87,22 +87,22 @@ testLevel("brueche", 9, (t) => {
   return [treffer[0].b];
 }, "Brüche am Zahlenstrahl");
 
-// --- Stufe 10: Tortenstücke. Referenz zählt NUR die gezeichneten Stücke und ihre Farben (SVG) ---
+// --- Stufe 10: Torte oder Balken. Referenz zählt NUR die gezeichneten Teile und ihre Farben (SVG) ---
 function tortenAusSVG(html) {
   return html.split('<g transform').slice(1).map((teil) => {
-    const stuecke = [...teil.matchAll(/(?:<path|<circle)[^>]*fill="([^"]+)"[^>]*data-stueck="(\d+)"/g)].map((m) => m[1]);
+    const stuecke = [...teil.matchAll(/(?:<path|<circle|<rect)[^>]*fill="([^"]+)"[^>]*data-stueck="(\d+)"/g)].map((m) => m[1]);
     const name = (teil.match(/class="tortenname">([^<]+)</) || [])[1] || "";
     return { n: stuecke.length, blau: stuecke.filter((f) => f === "#60a5fa").length, rot: stuecke.filter((f) => f === "#f87171").length, name };
   });
 }
-testLevel("brueche", 10, (t) => {
-  const T10 = tortenAusSVG(t.graph), s = t.subtype, L = ML.TOPICS.brueche.levels.find((l) => l.id === 10);
+function tortenRef(t, graph) {
+  const T10 = tortenAusSVG(graph), s = t.subtype, L = ML.TOPICS.brueche.levels.find((l) => l.id === 10);
   if (T10.some((x) => x.n < 1 || x.n > 12)) throw new Error("unpassende Stückzahl");
   let r;
   if (s === "ablesen") r = [kuerze(T10[0].blau, T10[0].n)];
   else if (s === "rest") r = [kuerze(T10[0].n - T10[0].blau, T10[0].n)];
   else if (s === "zweiFarben") r = [kuerze(T10[0].blau, T10[0].n), kuerze(T10[0].rot, T10[0].n), kuerze(T10[0].blau + T10[0].rot, T10[0].n)];
-  else if (s === "vergleichen") { const [A, B] = T10, v = A.blau * B.n - B.blau * A.n; r = [kuerze(A.blau, A.n), kuerze(B.blau, B.n), v > 0 ? "Torte A" : v < 0 ? "Torte B" : "gleich viel"]; }
+  else if (s === "vergleichen") { const [A, B] = T10, v = A.blau * B.n - B.blau * A.n; r = [kuerze(A.blau, A.n), kuerze(B.blau, B.n), v > 0 ? "A" : v < 0 ? "B" : "gleich viel"]; }
   else if (s === "zuordnen") {
     const zahlen = visible(t.prompt).match(/\d+/g).map(Number), ziel = kuerze(zahlen[0], zahlen[1]);
     const treffer = T10.filter((x) => { const k = kuerze(x.blau, x.n); return k.num === ziel.num && k.den === ziel.den; });
@@ -117,4 +117,18 @@ testLevel("brueche", 10, (t) => {
   const erw = r.map((x) => (x && typeof x === "object" ? `${x.num * 2}/${x.den * 2}` : String(x)));
   if (!L.check(t, erw).correct) throw new Error("erweiterte Schreibweise abgelehnt");
   return r;
-}, "Tortenstücke");
+}
+// Torte und Balken müssen dieselbe Lösung zeigen; beide werden nur aus der Zeichnung ausgewertet
+testLevel("brueche", 10, (t) => {
+  if (!t.darstellungen || !t.darstellungen.torte || !t.darstellungen.balken) throw new Error("Darstellungen fehlen");
+  if (!/class="torte"/.test(t.darstellungen.torte.graph) || !/class="balken"/.test(t.darstellungen.balken.graph)) throw new Error("falsche Grafikart");
+  if (t.graph !== t.darstellungen.torte.graph) throw new Error("Standard ist nicht die Torte");
+  if (!/Balken/.test(visible(t.darstellungen.balken.prompt + " " + t.darstellungen.balken.question)) && !/ablesen|rest|zweiFarben/.test(t.subtype)) throw new Error("Balkentext erwähnt keinen Balken");
+  if (/Torte/.test(visible(t.darstellungen.balken.prompt + t.darstellungen.balken.question))) throw new Error("Balkentext spricht von Torte");
+  const bd = t.darstellungen.beide;
+  if (!bd || bd.graph !== `<div class="darst-beide">${t.darstellungen.torte.graph}${t.darstellungen.balken.graph}</div>`) throw new Error("Ansicht beide fehlt");
+  if (/Torte|Balken/.test(visible(bd.prompt + " " + (bd.question || "")))) throw new Error("Text bei beide nennt eine Darstellung");
+  const a = tortenRef(t, t.darstellungen.torte.graph), b = tortenRef(t, t.darstellungen.balken.graph);
+  if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error("Torte und Balken zeigen Verschiedenes");
+  return a;
+}, "Torte oder Balken");

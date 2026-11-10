@@ -88,6 +88,10 @@
     z[k] = (z[k] || []).concat([eintrag]).slice(-MAX_SERIEN);
     persistStats();
   }
+  // Gewählte Darstellung (z. B. Torte oder Balken), gilt für alle folgenden Aufgaben
+  const DARSTELLUNG_KEY = "__darstellung";
+  function darstellungsArt(moeglich) { const a = (statsCache[DARSTELLUNG_KEY] || {}).art; return moeglich.includes(a) ? a : moeglich[0]; }
+  function setzeDarstellungsArt(a) { statsCache[DARSTELLUNG_KEY] = { art: a }; persistStats(); }
   // Rangfolge: mehr Punkte zuerst, bei Gleichstand die kürzere Zeit
   const serienRang = (a, b) => b.p - a.p || a.ms - b.ms;
   function serienVon(topicKey, levelId, g) { return (((statsCache[ZEIT_KEY] || {})[statKey(topicKey, levelId)]) || []).filter((e) => e.g === g).slice().sort(serienRang); }

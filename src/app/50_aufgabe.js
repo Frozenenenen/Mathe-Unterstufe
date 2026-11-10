@@ -92,10 +92,29 @@
     if (level.calculatorHint) {
       card.appendChild(text("div", "calc-hint", "🖩 " + level.calculatorHint));
     }
-    card.appendChild(el("div", { class: "task-prompt" + (task.textTask ? " text-task" : ""), html: ML.mathToHtml(task.prompt) }));
-    if (typeof task.graph === "string") card.appendChild(el("div", { class: "ka-graph", html: task.graph }));
+    // Mehrere Darstellungen derselben Aufgabe (z. B. Torte/Balken): gespeicherte Wahl anwenden
+    if (task.darstellungen) { const art = darstellungsArt(Object.keys(task.darstellungen)); Object.assign(task, task.darstellungen[art]); }
+    const promptEl = el("div", { class: "task-prompt" + (task.textTask ? " text-task" : ""), html: ML.mathToHtml(task.prompt) });
+    card.appendChild(promptEl);
+    let graphEl = null, frageEl = null;
+    if (task.darstellungen) {
+      const arten = Object.keys(task.darstellungen), knoepfe = [];
+      const NAMEN = { torte: "🥧 Torte", balken: "▬ Balken", beide: "Beide" };
+      const leiste = el("div", { class: "choice-btn-group darstellung-wahl", role: "group", "aria-label": "Darstellung wählen" });
+      arten.forEach((a) => {
+        const k = el("button", { type: "button", class: "choice-btn" + (task.prompt === task.darstellungen[a].prompt && task.graph === task.darstellungen[a].graph ? " selected" : ""), onclick: () => {
+          setzeDarstellungsArt(a); Object.assign(task, task.darstellungen[a]);
+          promptEl.innerHTML = ML.mathToHtml(task.prompt); if (graphEl) graphEl.innerHTML = task.graph; if (frageEl) frageEl.innerHTML = ML.mathToHtml(task.question || "");
+          knoepfe.forEach((x) => x.classList.toggle("selected", x === k));
+        } }, [document.createTextNode(NAMEN[a] || a)]);
+        knoepfe.push(k); leiste.appendChild(k);
+      });
+      card.appendChild(leiste);
+    }
+    if (typeof task.graph === "string") { graphEl = el("div", { class: "ka-graph", html: task.graph }); card.appendChild(graphEl); }
     if (task.question) {
-      card.appendChild(el("div", { class: "task-question" + (task.textTask ? " text-task" : ""), html: ML.mathToHtml(task.question) }));
+      frageEl = el("div", { class: "task-question" + (task.textTask ? " text-task" : ""), html: ML.mathToHtml(task.question) });
+      card.appendChild(frageEl);
     }
 
     const inputs = baueEingaben(task, level, card, "field-", () => onCheck());

@@ -190,6 +190,10 @@
   .field-row .formel-eingabe .fe-hoch .frac-input .frac-in { padding: 3px 4px; font-size: 0.8rem; }
   .formel-eingabe .frac-hint { display: none; }
   .formel-msgs .frac-hint { margin-top: 6px; }
+  .darstellung-wahl { margin: 4px 0 10px; }
+  .darstellung-wahl button.choice-btn { padding: 6px 10px; font-size: 0.9rem; }
+  .darst-beide { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; }
+  .darst-beide svg { max-width: 100%; height: auto; }
   .field-msg.field-tipp::before { content: "💡 "; }
   .steps-box.tipp-box { border-style: dashed; }
   .tile-mark { font-size: 0.8rem; font-weight: 700; margin-top: 6px; }
@@ -5012,7 +5016,7 @@ const KLAUSUR_PROBLEMS = [
     "brueche/8": E("Dezimalbrüche", [T("Bruch → Dezimalzahl: auf 10, 100, 1000 … erweitern oder Zähler durch Nenner teilen."), T("Dezimalzahl → Bruch: Nachkommastellen bestimmen den Nenner, dann kürzen."), T("Abbrechend genau dann, wenn der gekürzte Nenner nur die Primfaktoren 2 und 5 hat; sonst periodisch (1/3 = 0,333…).")],
       [{ left: `\\dfrac{3}{8} = \\dfrac{375}{1000} = 0,375\\,, \\qquad 0,35 = \\dfrac{35}{100} = \\dfrac{7}{20}`, right: "" }], [T("Bei 3/6 = 1/2 vorher nicht kürzen und deshalb „periodisch“ wegen der 3 im Nenner sagen.")])
   });
-  // ---- Stufe 10: Brüche als Tortenstücke (Kreisdarstellung, Kl. 5–6) ----
+  // ---- Stufe 10: Brüche als Torte oder Balken (Kl. 5–6) ----
   // Vorbild: Schulbuch/Arbeitsblätter: gefärbten Anteil ablesen (auch kürzen), Rest, passende Torte
   // zuordnen (gleichwertige Brüche), zwei Torten vergleichen, zwei Farben, gemischte Zahlen aus mehreren Kreisen.
   const TORTE_BLAU = "#60a5fa", TORTE_ROT = "#f87171";
@@ -5042,54 +5046,90 @@ const KLAUSUR_PROBLEMS = [
     return svg + "</svg>";
   }
   const gefaerbt = (n, k, farbe) => Array.from({ length: n }, (_, i) => (i < k ? farbe || TORTE_BLAU : null));
+  // Balkendarstellung: jede Figur ein waagerechter Streifen aus n gleich großen Teilen (gleiche Daten wie die Torten)
+  function balkenReihe(liste) {
+    const B = 300, H = 34, gap = 12, mitName = liste.some((t) => t.name), x0 = mitName ? 26 : 2, W = x0 + B + 2;
+    const Hges = liste.length * H + (liste.length - 1) * gap + 4, f = (x) => x.toFixed(2);
+    let svg = `<svg viewBox="0 0 ${W} ${Hges}" width="${W}" height="${Hges}" xmlns="http://www.w3.org/2000/svg" class="graph-svg">`;
+    liste.forEach((t, j) => {
+      const y = 2 + j * (H + gap), w = B / t.n;
+      svg += `<g transform="translate(${x0},${y})" class="balken">`;
+      if (t.name) svg += `<text x="-14" y="${H / 2 + 5}" font-size="14" font-weight="bold" text-anchor="middle" fill="#0f172a" class="tortenname">${t.name}</text>`;
+      for (let i = 0; i < t.n; i++) svg += `<rect x="${f(i * w)}" y="0" width="${f(w)}" height="${H}" fill="${t.farben[i] || "#ffffff"}" stroke="#334155" stroke-width="1.5" data-stueck="${i}"/>`;
+      svg += "</g>";
+    });
+    return svg + "</svg>";
+  }
+  // Wörter je Darstellung
+  const DARST = {
+    torte: { der: "der Torte", die: "die Torte", Welche: "Welche Torte", passende: "die passende Torte", zwei: "Zwei gleich große Torten wurden unterschiedlich geschnitten.", welcher: "welcher Torte", alle: "Alle Torten sind gleich groß. Wie viele Torten sind blau gefärbt?", teile: "Stücke" },
+    beide: { der: "der Figur", die: "die Figur", Welche: "Welche Figur", passende: "die passende Figur", zwei: "Zwei gleich große Ganze wurden unterschiedlich eingeteilt.", welcher: "welcher Figur", alle: "Alle Ganzen sind gleich groß. Wie viele Ganze sind blau gefärbt?", teile: "Teile" },
+    balken: { der: "des Balkens", die: "der Balken", Welche: "Welcher Balken", passende: "den passenden Balken", zwei: "Zwei gleich lange Balken wurden unterschiedlich eingeteilt.", welcher: "welchem Balken", alle: "Alle Balken sind gleich lang. Wie viele Balken sind blau gefärbt?", teile: "Teile" }
+  };
+  // hängt beide Darstellungen an die Aufgabe; Standard (graph/prompt/question) ist die Torte
+  function mitDarstellungen(task, liste, proZeile, texte) {
+    task.darstellungen = {};
+    for (const art of ["torte", "balken"]) {
+      const tx = texte(DARST[art]);
+      task.darstellungen[art] = { graph: art === "torte" ? tortenReihe(liste, proZeile) : balkenReihe(liste), prompt: tx.prompt, question: tx.question };
+    }
+    // beide zugleich: dieselben Figuren als Torte und als Balken (gleiche Buchstaben, gleiche Färbung)
+    const tb = texte(DARST.beide);
+    task.darstellungen.beide = { graph: `<div class="darst-beide">${task.darstellungen.torte.graph}${task.darstellungen.balken.graph}</div>`, prompt: tb.prompt, question: tb.question };
+    return Object.assign(task, task.darstellungen.torte);
+  }
   function gen_brueche_10() {
     const sub = choice(["ablesen", "ablesen", "rest", "zuordnen", "vergleichen", "zweiFarben", "gemischt"]);
     if (sub === "ablesen" || sub === "rest") {
       const n = randInt(2, 12); let k; do { k = randInt(1, n - 1); } while (sub === "ablesen" && n > 4 && Math.random() < 0.5 && gcd(k, n) === 1);
       const z = sub === "rest" ? n - k : k;
-      return { topic: "brueche", level: 10, subtype: sub, prompt: T(sub === "rest" ? "Welcher Anteil der Torte ist NICHT gefärbt?" : "Welcher Anteil der Torte ist blau gefärbt?"), promptText: `${sub} ${k}/${n}`,
-        graph: tortenReihe([{ n, farben: gefaerbt(n, k), gr: 150 }]), question: T("Gib den Anteil als Bruch an (gekürzt oder ungekürzt)."),
-        numFields: 1, fieldLabels: ["Anteil"], answer: [{ num: z, den: n }], data: { n, k, z } };
+      return mitDarstellungen({ topic: "brueche", level: 10, subtype: sub, promptText: `${sub} ${k}/${n}`,
+        numFields: 1, fieldLabels: ["Anteil"], answer: [{ num: z, den: n }], data: { n, k, z } }, [{ n, farben: gefaerbt(n, k), gr: 150 }], 0,
+        (W) => ({ prompt: T(sub === "rest" ? `Welcher Anteil ${W.der} ist NICHT gefärbt?` : `Welcher Anteil ${W.der} ist blau gefärbt?`), question: T("Gib den Anteil als Bruch an (gekürzt oder ungekürzt).") }));
     }
     if (sub === "zuordnen") {
       for (;;) {
         let p, q; do { q = choice([2, 3, 4, 5, 6]); p = randInt(1, q - 1); } while (gcd(p, q) !== 1);
-        const m = choice([1, 2, 2, 3].filter((x) => q * x <= 12)), N = q * m, K = p * m; // richtige Torte, evtl. feiner eingeteilt
+        const m = choice([1, 2, 2, 3].filter((x) => q * x <= 12)), N = q * m, K = p * m; // richtige Figur, evtl. feiner eingeteilt
         const kand = [{ n: N, k: K }];
         const ablenker = [{ n: N, k: p }, { n: q + p, k: p }, { n: N, k: N - K }, { n: N, k: K + 1 }, { n: N, k: K - 1 }, { n: p + q, k: q }];
         mische(ablenker).forEach((a) => { if (kand.length < 4 && a.k > 0 && a.k < a.n && a.n <= 12 && Math.abs(a.k / a.n - p / q) > 1e-9 && !kand.some((b) => b.n === a.n && b.k === a.k)) kand.push(a); });
         if (kand.length < 4) continue;
         const reihen = mische(kand).map((t, i) => Object.assign(t, { name: "ABCD"[i] }));
         const L = reihen.find((t) => t.n === N && t.k === K).name;
-        return { topic: "brueche", level: 10, subtype: sub, prompt: `${T("Welche Torte zeigt")}\\;\\; \\dfrac{${p}}{${q}}\\;${T("?")}`, promptText: `zuordnen ${p}/${q}`,
-          graph: tortenReihe(reihen.map((t) => ({ n: t.n, farben: gefaerbt(t.n, t.k), name: t.name, gr: 120 })), 2), question: T("Wähle die passende Torte."),
-          numFields: 1, fieldType: "choice", fieldChoices: [["A", "B", "C", "D"]], fieldLabels: ["Torte"], answer: [L], data: { p, q, N, K, reihen: reihen.map((t) => [t.name, t.n, t.k]) } };
+        return mitDarstellungen({ topic: "brueche", level: 10, subtype: sub, promptText: `zuordnen ${p}/${q}`,
+          numFields: 1, fieldType: "choice", fieldChoices: [["A", "B", "C", "D"]], fieldLabels: ["Buchstabe"], answer: [L], data: { p, q, N, K, reihen: reihen.map((t) => [t.name, t.n, t.k]) } },
+          reihen.map((t) => ({ n: t.n, farben: gefaerbt(t.n, t.k), name: t.name, gr: 120 })), 2,
+          (W) => ({ prompt: `${T(W.Welche + " zeigt")}\\;\\; \\dfrac{${p}}{${q}}\\;${T("?")}`, question: T(`Wähle ${W.passende}.`) }));
       }
     }
     if (sub === "vergleichen") {
       let n1, k1, n2, k2; do { n1 = randInt(3, 12); n2 = randInt(3, 12); k1 = randInt(1, n1 - 1); k2 = randInt(1, n2 - 1); } while (n1 === n2 || (Math.random() < 0.7 && k1 * n2 === k2 * n1));
-      const v = k1 * n2 - k2 * n1, A = v > 0 ? "Torte A" : v < 0 ? "Torte B" : "gleich viel";
-      return { topic: "brueche", level: 10, subtype: sub, prompt: T("Zwei gleich große Torten wurden unterschiedlich geschnitten. Die blauen Stücke sind noch übrig."), promptText: `vergleichen ${k1}/${n1} ${k2}/${n2}`,
-        graph: tortenReihe([{ n: n1, farben: gefaerbt(n1, k1), name: "A", gr: 120 }, { n: n2, farben: gefaerbt(n2, k2), name: "B", gr: 120 }]),
-        question: T("Wie viel ist jeweils übrig, und von welcher Torte ist mehr übrig?"), numFields: 3, perFieldType: ["text", "text", "choice"], fieldChoices: [null, null, ["Torte A", "Torte B", "gleich viel"]],
-        fieldLabels: ["übrig von A", "übrig von B", "mehr übrig ist bei"], answer: [{ num: k1, den: n1 }, { num: k2, den: n2 }, A], data: { n1, k1, n2, k2 } };
+      const v = k1 * n2 - k2 * n1, A = v > 0 ? "A" : v < 0 ? "B" : "gleich viel";
+      return mitDarstellungen({ topic: "brueche", level: 10, subtype: sub, promptText: `vergleichen ${k1}/${n1} ${k2}/${n2}`,
+        numFields: 3, perFieldType: ["text", "text", "choice"], fieldChoices: [null, null, ["A", "B", "gleich viel"]],
+        fieldLabels: ["übrig von A", "übrig von B", "mehr übrig ist bei"], answer: [{ num: k1, den: n1 }, { num: k2, den: n2 }, A], data: { n1, k1, n2, k2 } },
+        [{ n: n1, farben: gefaerbt(n1, k1), name: "A", gr: 120 }, { n: n2, farben: gefaerbt(n2, k2), name: "B", gr: 120 }], 0,
+        (W) => ({ prompt: T(`${W.zwei} Die blauen ${W.teile} sind noch übrig.`), question: T(`Wie viel ist jeweils übrig, und bei ${W.welcher} ist mehr übrig?`) }));
     }
     if (sub === "zweiFarben") {
       for (;;) {
         const n = choice([4, 6, 8, 10, 12]), b = randInt(1, n - 2), r = randInt(1, n - 1 - b);
-        if (gcd(b, n) === 1 && gcd(r, n) === 1 && Math.random() < 0.6) continue; // meist kürzbare Teile, damit die Torte "Viertel/Drittel" zeigt
+        if (gcd(b, n) === 1 && gcd(r, n) === 1 && Math.random() < 0.6) continue; // meist kürzbare Teile (Viertel, Drittel …)
         const farben = Array.from({ length: n }, (_, i) => (i < b ? TORTE_BLAU : i < b + r ? TORTE_ROT : null));
-        return { topic: "brueche", level: 10, subtype: sub, prompt: T("Ein Teil der Torte ist blau, ein Teil rot gefärbt."), promptText: `zweiFarben ${b}+${r}/${n}`,
-          graph: tortenReihe([{ n, farben, gr: 150 }]), question: T("Welcher Anteil ist blau, welcher rot, und welcher Anteil ist insgesamt gefärbt?"),
-          numFields: 3, fieldLabels: ["blau", "rot", "insgesamt gefärbt"], answer: [{ num: b, den: n }, { num: r, den: n }, { num: b + r, den: n }], data: { n, b, r } };
+        return mitDarstellungen({ topic: "brueche", level: 10, subtype: sub, promptText: `zweiFarben ${b}+${r}/${n}`,
+          numFields: 3, fieldLabels: ["blau", "rot", "insgesamt gefärbt"], answer: [{ num: b, den: n }, { num: r, den: n }, { num: b + r, den: n }], data: { n, b, r } },
+          [{ n, farben, gr: 150 }], 0,
+          (W) => ({ prompt: T(`Ein Teil ${W.der} ist blau, ein Teil rot gefärbt.`), question: T("Welcher Anteil ist blau, welcher rot, und welcher Anteil ist insgesamt gefärbt?") }));
       }
     }
-    // gemischt: g volle Torten und eine angeschnittene
+    // gemischt: g volle Ganze und ein angeschnittenes
     const g = randInt(1, 3), n = randInt(2, 8), k = randInt(1, n - 1);
     const liste = Array.from({ length: g }, () => ({ n, farben: gefaerbt(n, n), gr: 90 })).concat([{ n, farben: gefaerbt(n, k), gr: 90 }]);
-    return { topic: "brueche", level: 10, subtype: sub, prompt: T("Alle Torten sind gleich groß. Wie viele Torten sind blau gefärbt?"), promptText: `gemischt ${g} ${k}/${n}`,
-      graph: tortenReihe(liste, 3), question: T("Gib die Anzahl als gemischte Zahl und als unechten Bruch an."), numFields: 3, perFieldType: ["text", "text", "text"],
-      fieldLabels: ["ganze Torten", "Bruchteil der letzten Torte", "als unechter Bruch"], eingabeForm: [0, 1, "=", 2], answer: [g, { num: k, den: n }, { num: g * n + k, den: n }], data: { g, n, k } };
+    return mitDarstellungen({ topic: "brueche", level: 10, subtype: sub, promptText: `gemischt ${g} ${k}/${n}`,
+      numFields: 3, perFieldType: ["text", "text", "text"], fieldLabels: ["Ganze", "Bruchteil", "als unechter Bruch"], eingabeForm: [0, 1, "=", 2],
+      answer: [g, { num: k, den: n }, { num: g * n + k, den: n }], data: { g, n, k } }, liste, 3,
+      (W) => ({ prompt: T(W.alle), question: T("Gib die Anzahl als gemischte Zahl und als unechten Bruch an.") }));
   }
   function check_brueche_10(task, inp) {
     const err = [];
@@ -5105,14 +5145,14 @@ const KLAUSUR_PROBLEMS = [
   function steps_brueche_10(task) {
     const d = task.data, s = task.subtype, gk = (z, n) => (gcd(z, n) > 1 ? ` = ${bruchTex(z, n)}` : "");
     if (s === "ablesen" || s === "rest") return [
-      { label: "Nenner: In wie viele gleich große Stücke ist die Torte geteilt?" }, { left: `${T(d.n + " Stücke")} \\;\\Rightarrow\\; ${T("Nenner")}\\; ${d.n}`, right: "" },
-      { label: s === "rest" ? "Zähler: die weißen (nicht gefärbten) Stücke zählen" : "Zähler: die blauen Stücke zählen" },
+      { label: "Nenner: In wie viele gleich große Teile ist das Ganze geteilt?" }, { left: `${T(d.n + " Teile")} \\;\\Rightarrow\\; ${T("Nenner")}\\; ${d.n}`, right: "" },
+      { label: s === "rest" ? "Zähler: die weißen (nicht gefärbten) Teile zählen" : "Zähler: die blauen Teile zählen" },
       { left: s === "rest" ? `${d.n} - ${d.k} = ${d.z} \\;\\Rightarrow\\; \\dfrac{${d.z}}{${d.n}}${gk(d.z, d.n)}` : `\\dfrac{${d.k}}{${d.n}}${gk(d.k, d.n)}`, right: "" }];
     if (s === "zuordnen") {
       const r = d.reihen.map(([nm, n, k]) => `${nm}: \\dfrac{${k}}{${n}}`).join(",\\;\\; ");
-      return [{ label: "Bei jeder Torte den Anteil ablesen: gefärbte Stücke von allen Stücken" }, { left: r, right: "" },
+      return [{ label: "Bei jeder Figur den Anteil ablesen: gefärbte Teile von allen Teilen" }, { left: r, right: "" },
         { label: "Kürzen bzw. erweitern und mit dem gesuchten Bruch vergleichen" },
-        { left: `\\dfrac{${d.K}}{${d.N}}${d.K !== d.p ? ` = \\dfrac{${d.p}}{${d.q}}` : ""} \\;\\Rightarrow\\; ${T("Torte " + task.answer[0])}`, right: "" }];
+        { left: `\\dfrac{${d.K}}{${d.N}}${d.K !== d.p ? ` = \\dfrac{${d.p}}{${d.q}}` : ""} \\;\\Rightarrow\\; ${T("Buchstabe " + task.answer[0])}`, right: "" }];
     }
     if (s === "vergleichen") {
       const L = (d.n1 * d.n2) / gcd(d.n1, d.n2), z1 = d.k1 * L / d.n1, z2 = d.k2 * L / d.n2;
@@ -5121,11 +5161,11 @@ const KLAUSUR_PROBLEMS = [
         { left: `\\dfrac{${z1}}{${L}} ${z1 > z2 ? ">" : z1 < z2 ? "<" : "="} \\dfrac{${z2}}{${L}} \\;\\Rightarrow\\; ${T(task.answer[2] === "gleich viel" ? "gleich viel übrig" : "mehr übrig bei " + task.answer[2])}`, right: "" }];
     }
     if (s === "zweiFarben") return [
-      { label: `Die Torte hat ${d.n} Stücke: blaue und rote Stücke einzeln zählen` }, { left: `${T("blau")}\\; \\dfrac{${d.b}}{${d.n}}${gk(d.b, d.n)},\\;\\; ${T("rot")}\\; \\dfrac{${d.r}}{${d.n}}${gk(d.r, d.n)}`, right: "" },
+      { label: `Das Ganze hat ${d.n} Teile: blaue und rote Teile einzeln zählen` }, { left: `${T("blau")}\\; \\dfrac{${d.b}}{${d.n}}${gk(d.b, d.n)},\\;\\; ${T("rot")}\\; \\dfrac{${d.r}}{${d.n}}${gk(d.r, d.n)}`, right: "" },
       { label: "Insgesamt: gleicher Nenner, Zähler addieren" }, { left: `\\dfrac{${d.b}}{${d.n}} + \\dfrac{${d.r}}{${d.n}} = \\dfrac{${d.b + d.r}}{${d.n}}${gk(d.b + d.r, d.n)}`, right: "" }];
     return [
-      { label: "Volle Torten zählen = Ganze" }, { left: `${d.g}\\; ${T(d.g === 1 ? "ganze Torte" : "ganze Torten")}`, right: "" },
-      { label: "Die angeschnittene Torte ablesen" }, { left: `\\dfrac{${d.k}}{${d.n}} \\;\\Rightarrow\\; ${d.g}\\,\\dfrac{${d.k}}{${d.n}}`, right: "" },
+      { label: "Vollständig gefärbte Figuren zählen = Ganze" }, { left: `${d.g}\\; ${T(d.g === 1 ? "Ganzes" : "Ganze")}`, right: "" },
+      { label: "Die nur teilweise gefärbte Figur ablesen" }, { left: `\\dfrac{${d.k}}{${d.n}} \\;\\Rightarrow\\; ${d.g}\\,\\dfrac{${d.k}}{${d.n}}`, right: "" },
       { label: "In einen unechten Bruch umwandeln: Ganze · Nenner + Zähler" }, { left: `\\dfrac{${d.g}\\cdot ${d.n} + ${d.k}}{${d.n}} = \\dfrac{${d.g * d.n + d.k}}{${d.n}}`, right: "" }];
   }
 
@@ -5141,10 +5181,10 @@ const KLAUSUR_PROBLEMS = [
        T("Den Zähler direkt abzählen, ohne vorher auf die Einteilung zu erweitern.")], "zahlenstrahl")
   });
   Object.assign(ERKL, {
-    "brueche/10": E("Brüche als Tortenstücke",
-      [T("Nenner: Zähle, in wie viele gleich große Stücke die Torte geteilt ist."), T("Zähler: Zähle die gefärbten Stücke."),
-       T("Der nicht gefärbte Rest: alle Stücke minus die gefärbten."), T("Zwei Torten vergleichen: Brüche gleichnamig machen, dann die Zähler vergleichen."),
-       T("Mehrere Torten: volle Torten sind die Ganzen, die angeschnittene Torte ist der Bruchteil.")],
+    "brueche/10": E("Brüche als Torte oder Balken",
+      [T("Nenner: Zähle, in wie viele gleich große Teile das Ganze (Torte oder Balken) geteilt ist."), T("Zähler: Zähle die gefärbten Teile."),
+       T("Der nicht gefärbte Rest: alle Teile minus die gefärbten."), T("Zwei Figuren vergleichen: Brüche gleichnamig machen, dann die Zähler vergleichen."),
+       T("Mehrere Figuren: vollständig gefärbte sind die Ganzen, die teilweise gefärbte ist der Bruchteil.")],
       [{ left: `${T("8 Stücke, 6 davon blau:")}\\;\\; \\dfrac{6}{8} = \\dfrac{3}{4}\\,, \\qquad ${T("nicht gefärbt:")}\\;\\; \\dfrac{2}{8} = \\dfrac{1}{4}`, right: "" }],
       [T("Gefärbte Stücke durch die weißen statt durch ALLE Stücke teilen (6 : 2 statt 6 : 8)."), T("Bei verschieden geschnittenen Torten nur die Anzahl der Stücke vergleichen – 3 große Stücke können mehr sein als 5 kleine.")], "torte")
   });
@@ -5153,7 +5193,7 @@ const KLAUSUR_PROBLEMS = [
   DIAG["brueche/10"] = (t, i, w, raw) => {
     const d = t.data, s = t.subtype;
     if ((s === "ablesen" || s === "rest") && w && d.n - d.z > 0 && nah(w.v, d.z / (d.n - d.z))) return H.durchRest;
-    if (s === "vergleichen" && i === 2 && d.k1 !== d.k2 && raw === (d.k1 > d.k2 ? "Torte A" : "Torte B") && raw !== t.answer[2]) return H.stueckeGezaehlt;
+    if (s === "vergleichen" && i === 2 && d.k1 !== d.k2 && raw === (d.k1 > d.k2 ? "A" : "B") && raw !== t.answer[2]) return H.stueckeGezaehlt;
     return null;
   };
   const erklGrafikBR = erklGrafik;
@@ -5190,7 +5230,7 @@ const KLAUSUR_PROBLEMS = [
       name: "Bruchrechnung",
       grade: "Kl. 5–6",
       levels: [
-        { id: 10, name: "Brüche als Tortenstücke", grade: "Kl. 5–6", generate: gen_brueche_10, check: check_brueche_10, steps: steps_brueche_10 },
+        { id: 10, name: "Brüche als Torte oder Balken", grade: "Kl. 5–6", generate: gen_brueche_10, check: check_brueche_10, steps: steps_brueche_10 },
         { id: 1, name: "Was ist größer? (gleicher Nenner/Zähler)", grade: "Kl. 5", generate: gen_brueche_1, check: check_brueche_1, steps: steps_brueche_1 },
         { id: 2, name: "Ungleichnamige Brüche vergleichen", grade: "Kl. 5–6", generate: gen_brueche_2, check: check_brueche_2, steps: steps_brueche_2 },
         { id: 9, name: "Brüche am Zahlenstrahl", grade: "Kl. 5–6", generate: gen_brueche_9, check: check_brueche_9, steps: steps_brueche_9 },
@@ -8912,6 +8952,10 @@ const KLAUSUR_PROBLEMS = [
     z[k] = (z[k] || []).concat([eintrag]).slice(-MAX_SERIEN);
     persistStats();
   }
+  // Gewählte Darstellung (z. B. Torte oder Balken), gilt für alle folgenden Aufgaben
+  const DARSTELLUNG_KEY = "__darstellung";
+  function darstellungsArt(moeglich) { const a = (statsCache[DARSTELLUNG_KEY] || {}).art; return moeglich.includes(a) ? a : moeglich[0]; }
+  function setzeDarstellungsArt(a) { statsCache[DARSTELLUNG_KEY] = { art: a }; persistStats(); }
   // Rangfolge: mehr Punkte zuerst, bei Gleichstand die kürzere Zeit
   const serienRang = (a, b) => b.p - a.p || a.ms - b.ms;
   function serienVon(topicKey, levelId, g) { return (((statsCache[ZEIT_KEY] || {})[statKey(topicKey, levelId)]) || []).filter((e) => e.g === g).slice().sort(serienRang); }
@@ -9151,6 +9195,8 @@ const KLAUSUR_PROBLEMS = [
       } else if (k === "__spieler") {
         if (typeof v.name !== "string" || v.name.length > 30) return { fehler: "Ungültiger Name in der Sicherung." };
         rein[k] = { name: v.name };
+      } else if (k === "__darstellung") {
+        rein[k] = { art: ["balken", "beide"].includes(v.art) ? v.art : "torte" };
       } else if (k === "__serie") {
         rein[k] = { g: v.g === 10 ? 10 : 5 };
       }
@@ -9462,10 +9508,29 @@ const KLAUSUR_PROBLEMS = [
     if (level.calculatorHint) {
       card.appendChild(text("div", "calc-hint", "🖩 " + level.calculatorHint));
     }
-    card.appendChild(el("div", { class: "task-prompt" + (task.textTask ? " text-task" : ""), html: ML.mathToHtml(task.prompt) }));
-    if (typeof task.graph === "string") card.appendChild(el("div", { class: "ka-graph", html: task.graph }));
+    // Mehrere Darstellungen derselben Aufgabe (z. B. Torte/Balken): gespeicherte Wahl anwenden
+    if (task.darstellungen) { const art = darstellungsArt(Object.keys(task.darstellungen)); Object.assign(task, task.darstellungen[art]); }
+    const promptEl = el("div", { class: "task-prompt" + (task.textTask ? " text-task" : ""), html: ML.mathToHtml(task.prompt) });
+    card.appendChild(promptEl);
+    let graphEl = null, frageEl = null;
+    if (task.darstellungen) {
+      const arten = Object.keys(task.darstellungen), knoepfe = [];
+      const NAMEN = { torte: "🥧 Torte", balken: "▬ Balken", beide: "Beide" };
+      const leiste = el("div", { class: "choice-btn-group darstellung-wahl", role: "group", "aria-label": "Darstellung wählen" });
+      arten.forEach((a) => {
+        const k = el("button", { type: "button", class: "choice-btn" + (task.prompt === task.darstellungen[a].prompt && task.graph === task.darstellungen[a].graph ? " selected" : ""), onclick: () => {
+          setzeDarstellungsArt(a); Object.assign(task, task.darstellungen[a]);
+          promptEl.innerHTML = ML.mathToHtml(task.prompt); if (graphEl) graphEl.innerHTML = task.graph; if (frageEl) frageEl.innerHTML = ML.mathToHtml(task.question || "");
+          knoepfe.forEach((x) => x.classList.toggle("selected", x === k));
+        } }, [document.createTextNode(NAMEN[a] || a)]);
+        knoepfe.push(k); leiste.appendChild(k);
+      });
+      card.appendChild(leiste);
+    }
+    if (typeof task.graph === "string") { graphEl = el("div", { class: "ka-graph", html: task.graph }); card.appendChild(graphEl); }
     if (task.question) {
-      card.appendChild(el("div", { class: "task-question" + (task.textTask ? " text-task" : ""), html: ML.mathToHtml(task.question) }));
+      frageEl = el("div", { class: "task-question" + (task.textTask ? " text-task" : ""), html: ML.mathToHtml(task.question) });
+      card.appendChild(frageEl);
     }
 
     const inputs = baueEingaben(task, level, card, "field-", () => onCheck());

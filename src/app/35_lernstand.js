@@ -52,6 +52,8 @@
       } else if (k === "__spieler") {
         if (typeof v.name !== "string" || v.name.length > 30) return { fehler: "Ungültiger Name in der Sicherung." };
         rein[k] = { name: v.name };
+      } else if (k === "__darstellung") {
+        rein[k] = { art: ["balken", "beide"].includes(v.art) ? v.art : "torte" };
       } else if (k === "__serie") {
         rein[k] = { g: v.g === 10 ? 10 : 5 };
       }
