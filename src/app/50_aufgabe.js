@@ -225,6 +225,9 @@
       let hinweise = {};
       try { hinweise = result.correct ? {} : ML.diagnose(task, values, result.fieldErrors); } catch (e) { hinweise = {}; }
 
+      inputs.forEach((inp) => { if (inp._nachPruefen) inp._nachPruefen(); });
+      // Zusatzhinweis eines Eingabebausteins (z. B. Rechenzeilen: letzte Zeile ist noch kein Ergebnis)
+      inputs.forEach((inp, idx) => { const m = document.getElementById("field-" + idx + "-msg"); if (m && m.dataset.zusatz && !result.correct) hinweise[idx] = hinweise[idx] || m.dataset.zusatz; });
       feedbackHolder.innerHTML = "";
       const fb = el("div", { class: "feedback " + (result.correct ? "ok" : "bad") });
       fb.textContent = result.correct ? (state.tipsShown ? "Richtig! (mit Tipp)" : "Richtig!") : "Das passt noch nicht -- schau dir die markierten Felder an.";
@@ -236,7 +239,7 @@
           if (!inp) return;
           inp.classList.add("field-error");
           if (inp._buttons) inp._buttons.forEach(b => b.classList.add("field-error"));
-          if (inp._visual) inp._visual.forEach(v => v.classList.add("field-error"));
+          if (inp._visual) (inp._fehlerZiel ? [inp._fehlerZiel()] : inp._visual).forEach(v => v && v.classList.add("field-error"));
           const label = (task.fieldLabels && task.fieldLabels[idx]) || `Feld ${idx + 1}`;
           const msgEl = document.getElementById("field-" + idx + "-msg");
           if (msgEl) {

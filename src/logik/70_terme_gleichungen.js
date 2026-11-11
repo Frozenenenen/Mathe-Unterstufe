@@ -84,7 +84,7 @@
     }
     const g = gcd(num, den) || 1;
     return {
-      topic: "terme_gleichungen", level: 3, signed: true, prompt: `${linTerm(a, b)} = ${linTerm(c, d)}`, promptText: `${a}x+${b}=${c}x+${d}`,
+      topic: "terme_gleichungen", level: 3, signed: true, zeilen: true, prompt: `${linTerm(a, b)} = ${linTerm(c, d)}`, promptText: `${a}x+${b}=${c}x+${d}`,
       question: `\\text{Löse die Gleichung.}`, numFields: 1, fieldLabels: ["x (Bruch oder Zahl)"], answer: [{ num: num / g, den: den / g }], data: { a, b, c, d }
     };
   }
@@ -105,7 +105,7 @@
     do { a = nz(-6, 6); c = nz(-6, 6); b = nz(-6, 6); d = nz(-6, 6); x0 = randInt(-8, 8); e = a * (x0 + b) - c * (x0 + d); } while (a === c || Math.abs(e) > 30);
     const rechts = `${fak(c)}(x ${d > 0 ? "+" : "-"} ${Math.abs(d)})${e === 0 ? "" : e > 0 ? ` + ${e}` : ` - ${-e}`}`;
     return {
-      topic: "terme_gleichungen", level: 4, signed: true, prompt: `${fak(a)}(x ${b > 0 ? "+" : "-"} ${Math.abs(b)}) = ${rechts}`, promptText: "Klammergleichung",
+      topic: "terme_gleichungen", level: 4, signed: true, zeilen: true, prompt: `${fak(a)}(x ${b > 0 ? "+" : "-"} ${Math.abs(b)}) = ${rechts}`, promptText: "Klammergleichung",
       question: `\\text{Löse die Gleichung.}`, numFields: 1, fieldLabels: ["x"], answer: [x0], data: { a, b, c, d, e, x0 }
     };
   }
@@ -182,7 +182,7 @@
       if (new Set(alle).size !== alle.length) continue;
       if ([Lv, Rv].some((v) => v.filter((g) => g.art === "x").length > 1 || v.filter((g) => g.art === "zahl").length > 1)) continue;
       const g = gcd(Math.abs(num), den) || 1;
-      return { topic: "terme_gleichungen", level: 11, signed: true, prompt: `${seiteTex(Lv, gliedTex)} = ${seiteTex(Rv, gliedTex)}`, promptText: "große Gleichung",
+      return { topic: "terme_gleichungen", level: 11, signed: true, zeilen: true, prompt: `${seiteTex(Lv, gliedTex)} = ${seiteTex(Rv, gliedTex)}`, promptText: "große Gleichung",
         question: `\\text{Löse die Gleichung.}`, numFields: 1, fieldLabels: ["x (Bruch oder Zahl)"], answer: [{ num: num / g, den: den / g }], data: { L: Lv, R: Rv } };
     }
   }

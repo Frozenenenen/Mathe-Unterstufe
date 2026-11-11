@@ -6,7 +6,8 @@
     renderGraphSVG, pathForFunction, makeTransform,
     diagnose, DIAG_HINWEISE,
     erzeugeKlassenarbeit, noteKA, KA_VORLAGEN, KA_NOTEN, KA_TEILGEBIETE, tippAbschnitte,
-    erklaerungFuer, dreieckSVG
+    erklaerungFuer, dreieckSVG,
+    termParser, zeilenErgebnis, zeilePruefen
   };
 
   if (typeof module !== "undefined" && module.exports) {

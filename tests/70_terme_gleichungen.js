@@ -126,3 +126,32 @@ testLevel("terme_gleichungen", 11, (t) => {
   const x = -C / B; for (let d = 1; d <= 4; d++) if (Math.abs(x * d - Math.round(x * d)) < 1e-9) return [{ num: Math.round(x * d), den: d }];
   throw new Error("Lösung kein einfacher Bruch");
 }, "Große Gleichungen mit Binomen");
+
+// --- Rechenzeilen (Stufen 3, 4, 11): jede Zeile des Musterrechenwegs muss als „passt“ gelten,
+// eine Zeile mit verändertem Zahlwert (fast immer) als „falsch“; die Ergebniszeile x = … wird erkannt ---
+function texZuText(tex) {
+  let t = ohneMbox(tex);
+  t = t.replace(/\\dfrac\{(\d+)\}\{(\d+)\}/g, "$1/$2");
+  for (let k = 0; k < 5; k++) t = t.replace(/\\dfrac\{([^{}]*)\}\{([^{}]*)\}/g, "($1)/($2)");
+  return t.replace(/\^\{([^{}]*)\}/g, "^$1").replace(/\\cdot/g, "*").replace(/\\[,;!]/g, " ");
+}
+[3, 4, 11].forEach((id) => {
+  const level = ML.TOPICS.terme_gleichungen.levels.find((l) => l.id === id);
+  console.log(`Prüfe Rechenzeilen Stufe ${id} ...`);
+  let falschErkannt = 0, veraendert = 0;
+  for (let n = 0; n < 1500; n++) {
+    totalChecked++;
+    const t = level.generate(), a = t.answer[0], x0 = typeof a === "number" ? a : a.num / a.den;
+    if (!t.zeilen) { fail(`Stufe ${id}: Rechenzeilen nicht eingeschaltet`); break; }
+    const zeilen = level.steps(t).filter((s) => !s.label && s.left && !/Rightarrow/.test(s.left)).map((s) => texZuText(s.left));
+    for (const z of zeilen) { const r = ML.zeilePruefen(z, x0); if (r !== "ok") { fail(`Stufe ${id} (${t.promptText}): Musterzeile „${z}“ gilt als ${r}`); break; } }
+    const erg = ML.zeilenErgebnis(zeilen[zeilen.length - 1]);
+    if (erg === null || !level.check(t, [erg]).correct) fail(`Stufe ${id}: Ergebniszeile „${zeilen[zeilen.length - 1]}“ nicht als richtig erkannt`);
+    if (level.check(t, [ML.zeilenErgebnis(`x = ${x0 + 1}`)]).correct) fail(`Stufe ${id}: falsches Ergebnis akzeptiert`);
+    // eine Zahl in der ersten Zeile um 1 verändern
+    const z0 = zeilen[0], m = [...z0.matchAll(/\d+/g)]; if (!m.length) continue;
+    const w = m[n % m.length], kaputt = z0.slice(0, w.index) + (Number(w[0]) + 1) + z0.slice(w.index + w[0].length);
+    veraendert++; if (ML.zeilePruefen(kaputt, x0) === "falsch") falschErkannt++;
+  }
+  if (falschErkannt < 0.9 * veraendert) fail(`Stufe ${id}: nur ${falschErkannt}/${veraendert} veränderte Zeilen als falsch erkannt`);
+});

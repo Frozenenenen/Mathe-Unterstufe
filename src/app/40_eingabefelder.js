@@ -2,11 +2,69 @@
   // Baut die Eingabefelder einer Aufgabe in 'card' und liefert die (versteckten)
   // Eingabe-Elemente zurück. 'prefix' macht die Feld-IDs eindeutig, damit auch
   // mehrere Aufgaben auf einer Seite (Klassenarbeit) funktionieren.
+  // Freie Rechenzeilen: beliebig viele Zwischenzeilen, die letzte Zeile (x = …) wird geprüft.
+  // Nach dem Prüfen zeigt jede Zeile, ob sie noch zur Ausgangsgleichung passt.
+  function vorschauTex(z) {
+    return String(z).replace(/\^\(([^()]*)\)/g, "^{$1}").replace(/\^(-?[\d.,]+)/g, "^{$1}").replace(/²/g, "^{2}").replace(/³/g, "^{3}")
+      .replace(/[*·]/g, " \\cdot ").replace(/=/g, " = ").replace(/([^ ])([+])/g, "$1 $2 ").replace(/(\S)-(?![^{]*})/g, "$1 - ");
+  }
+  function baueRechenzeilen(task, card, prefix, beiEnter) {
+    const wrap = el("div", { class: "rechenzeilen" });
+    wrap.appendChild(el("div", { class: "rz-hinweis", html: "Rechne Zeile für Zeile. In die <b>letzte Zeile</b> kommt das Ergebnis, z. B. <code>x = 3</code> oder <code>x = -5/4</code>." }));
+    const liste = el("div", { class: "rz-liste" });
+    const hidden = el("input", { type: "hidden", id: prefix + "0" });
+    const zeilen = []; hidden._visual = zeilen; hidden._fehlerZiel = () => zeilen[zeilen.length - 1]; // rot wird nur die Ergebniszeile
+    const msg = el("div", { class: "field-msg", id: prefix + "0-msg" });
+    const MARKE = { ok: ["rz-ok", "✓ passt"], falsch: ["rz-falsch", "✗ In dieser Zeile steckt ein Fehler"], folge: ["", ""], keineGleichung: ["rz-info", "Keine Gleichung (= fehlt)"], unlesbar: ["rz-info", "Nicht lesbar – erlaubt sind Zahlen, x, + − · / ^ und Klammern"] };
+    function aktualisiere() { hidden.value = ML.zeilenErgebnis(zeilen.length ? zeilen[zeilen.length - 1].value : "") || (zeilen.length ? zeilen[zeilen.length - 1].value : ""); }
+    function neueZeile(fokus) {
+      const inp = el("input", { type: "text", class: "rz-input", autocomplete: "off", autocapitalize: "off", spellcheck: "false", "aria-label": `Zeile ${zeilen.length + 1}` });
+      const vorschau = el("div", { class: "rz-vorschau" }), marke = el("div", { class: "rz-marke" });
+      inp._marke = marke;
+      inp.addEventListener("input", () => { vorschau.innerHTML = inp.value.trim() ? ML.mathToHtml(vorschauTex(inp.value)) : ""; marke.textContent = ""; marke.className = "rz-marke"; aktualisiere(); });
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); if (beiEnter) beiEnter(); } });
+      zeilen.push(inp);
+      liste.appendChild(el("div", { class: "rz-zeile" }, [inp, vorschau, marke]));
+      plusBtn.disabled = hidden.disabled; minusBtn.style.display = zeilen.length > 1 ? "" : "none";
+      aktualisiere();
+      if (fokus) inp.focus();
+    }
+    const plusBtn = el("button", { type: "button", class: "btn secondary rz-plus", onclick: () => neueZeile(true) }, [document.createTextNode("+ Zusätzliche Zeile")]);
+    const minusBtn = el("button", { type: "button", class: "btn ghost rz-plus", onclick: () => {
+      if (zeilen.length < 2) return; zeilen.pop(); liste.removeChild(liste.lastChild); minusBtn.style.display = zeilen.length > 1 ? "" : "none"; aktualisiere();
+    } }, [document.createTextNode("− Zeile entfernen")]);
+    hidden._buttons = [plusBtn, minusBtn];
+    wrap.appendChild(liste);
+    wrap.appendChild(el("div", { class: "rz-knoepfe" }, [plusBtn, minusBtn]));
+    wrap.appendChild(msg); wrap.appendChild(hidden);
+    card.appendChild(wrap);
+    neueZeile(false);
+    // nach dem Prüfen: jede Zeile gegen die Lösung der Ausgangsgleichung halten (verrät die Lösung nicht)
+    hidden._nachPruefen = () => {
+      const a = task.answer[0], x0 = typeof a === "number" ? a : a.num / a.den;
+      let fehlerGezeigt = false;
+      zeilen.forEach((z, k) => {
+        const letzte = k === zeilen.length - 1;
+        let r = ML.zeilePruefen(z.value, x0);
+        if (r === "leer") { z._marke.textContent = ""; return; }
+        if (r === "falsch" && fehlerGezeigt) r = "folge";             // nur die erste falsche Zeile markieren
+        if (r === "falsch") fehlerGezeigt = true;
+        if (letzte && ML.zeilenErgebnis(z.value) !== null) r = null;   // Ergebnis prüft die normale Prüfung
+        const [cls, txt] = r ? MARKE[r] : ["", ""];
+        z._marke.className = "rz-marke " + cls; z._marke.textContent = txt;
+      });
+      const letzteZ = zeilen.length ? zeilen[zeilen.length - 1].value.trim() : "";
+      msg.dataset.zusatz = !letzteZ ? "Trage in die letzte Zeile dein Ergebnis ein: x = Zahl."
+        : ML.zeilenErgebnis(letzteZ) === null ? "Die letzte Zeile muss das Ergebnis sein: x = Zahl." : "Das Ergebnis in der letzten Zeile stimmt noch nicht.";
+    };
+    return [hidden];
+  }
   function baueEingaben(task, level, card, prefix, beiEnter) {
     // Eingabefelder -- Anzahl richtet sich nach task.numFields (kann > answer.length
     // sein, damit die Feldanzahl selbst nie die Lösung verrät; bei den aktuellen
     // Stufen ist numFields stets gleich answer.length).
     const inputs = [];
+    if (task.zeilen) return baueRechenzeilen(task, card, prefix, beiEnter);
     if (task.graphs && task.fieldType === "select") {
       // Graphen-Zuordnung: Raster aus SVG-Grafik + Beschriftung + Dropdown
       const grid = el("div", { class: "graph-grid" });

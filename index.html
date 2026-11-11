@@ -216,6 +216,17 @@
   .besten-details summary { cursor: pointer; margin-top: 6px; font-size: 0.92em; color: var(--accent); }
   .besten-details ol { margin: 4px 0 0 0; padding-left: 22px; font-size: 0.92em; }
   .nobr { white-space: nowrap; }
+  .rechenzeilen { margin: 8px 0 4px; }
+  .rz-hinweis { font-size: 0.9rem; color: #475569; margin-bottom: 8px; }
+  .rz-hinweis code { white-space: nowrap; background: #f1f5f9; padding: 1px 4px; border-radius: 4px; }
+  .rz-zeile { margin-bottom: 8px; }
+  .rz-input { width: 100%; box-sizing: border-box; font-size: 1.05rem; padding: 8px 10px; border: 2px solid #cbd5e1; border-radius: 10px; font-family: inherit; }
+  .rz-input.field-error { border-color: #ef4444; }
+  .rz-vorschau { min-height: 1.2em; font-size: 0.95rem; color: #334155; padding: 2px 4px; overflow-wrap: anywhere; }
+  .rz-marke { font-size: 0.85rem; font-weight: 600; padding: 0 4px; }
+  .rz-marke.rz-ok { color: #15803d; } .rz-marke.rz-falsch { color: #b91c1c; } .rz-marke.rz-info { color: #92400e; }
+  .rz-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  .rz-plus { padding: 6px 12px; font-size: 0.9rem; }
   .serie-zaehler { margin-left: 12px; color: #475569; font-size: 0.92em; white-space: nowrap; }
   .exam-small { color: var(--grey); font-size: 0.85rem; margin: 4px 0; }
   .setup-title { font-weight: 800; margin: 16px 0 8px; }
@@ -1015,6 +1026,96 @@
   // Themen-Registry: jede Themendatei trägt sich hier ein (Reihenfolge = Startseite)
   const TOPICS = {};
 
+  // ============================================================
+  // RECHENZEILEN: freie Eingabe von Gleichungen (z. B. "2x^2 - 2 = -24")
+  // Nur Zahlen, x, + − · / ^ ² ³ und Klammern; Malpunkt darf fehlen ("2x", "3(x+1)").
+  // ============================================================
+  function termParser(str) {
+    const s = String(str).replace(/[−–]/g, "-").replace(/[·×∙*]/g, "*").replace(/:/g, "/").replace(/X/g, "x").replace(/\s+/g, "");
+    let i = 0;
+    const fehler = () => { throw new Error("unlesbar"); };
+    function zahl() { const m = s.slice(i).match(/^\d+([.,]\d+)?/); if (!m) fehler(); i += m[0].length; const v = parseFloat(m[0].replace(",", ".")); return () => v; }
+    function atom() {
+      if (s[i] === "(") { i++; const e = summe(); if (s[i] !== ")") fehler(); i++; return e; }
+      if (s[i] === "x") { i++; return (x) => x; }
+      if (/\d/.test(s[i] || "")) return zahl();
+      fehler();
+    }
+    function potenz() {
+      let b = atom();
+      for (;;) {
+        if (s[i] === "²" || s[i] === "³") { const e = s[i] === "²" ? 2 : 3; i++; const bb = b; b = (x) => Math.pow(bb(x), e); continue; }
+        if (s[i] === "^") { i++; let e; if (s[i] === "(") e = atom(); else { const neg = s[i] === "-"; if (neg) i++; const z = zahl(); e = neg ? (x) => -z(x) : z; } const bb = b, ee = e; b = (x) => Math.pow(bb(x), ee(x)); continue; }
+        return b;
+      }
+    }
+    function vorzeichen() { if (s[i] === "-") { i++; const f = vorzeichen(); return (x) => -f(x); } if (s[i] === "+") { i++; return vorzeichen(); } return potenz(); }
+    function produkt() {
+      let f = vorzeichen();
+      for (;;) {
+        const c = s[i];
+        if (c === "*" || c === "/") { i++; const g = vorzeichen(), ff = f; f = c === "*" ? (x) => ff(x) * g(x) : (x) => ff(x) / g(x); continue; }
+        if (c === "(" || c === "x" || /\d/.test(c || "")) { const g = potenz(), ff = f; f = (x) => ff(x) * g(x); continue; } // Malpunkt weggelassen
+        return f;
+      }
+    }
+    function summe() {
+      let f = produkt();
+      while (s[i] === "+" || s[i] === "-") { const c = s[i]; i++; const g = produkt(), ff = f; f = c === "+" ? (x) => ff(x) + g(x) : (x) => ff(x) - g(x); }
+      return f;
+    }
+    if (!s) fehler();
+    const f = summe();
+    if (i !== s.length) fehler();
+    return f;
+  }
+  // Polynomkoeffizienten [c0..c4] von f aus Funktionswerten; null, wenn f kein Polynom bis Grad 4 ist
+  function polyAusWerten(f) {
+    const xs = [-2, -1, 0, 1, 2], ys = xs.map(f);
+    if (ys.some((y) => !isFinite(y))) return null;
+    // Newton-Interpolation, dann in Monome umrechnen
+    const n = 5, a = ys.slice();
+    for (let j = 1; j < n; j++) for (let k = n - 1; k >= j; k--) a[k] = (a[k] - a[k - 1]) / (xs[k] - xs[k - j]);
+    let c = [0, 0, 0, 0, 0];
+    for (let k = n - 1; k >= 0; k--) { // c = c·(x − xs[k]) + a[k]
+      const neu = [0, 0, 0, 0, 0];
+      for (let d = 0; d < 4; d++) { neu[d + 1] += c[d]; neu[d] -= c[d] * xs[k]; }
+      neu[0] += a[k]; c = neu;
+    }
+    const p = (x) => c.reduce((s, k, d) => s + k * Math.pow(x, d), 0);
+    for (const x of [3, -3, 0.5, 7]) { const y = f(x); if (!isFinite(y) || Math.abs(y - p(x)) > 1e-6 * Math.max(1, Math.abs(y))) return null; }
+    return c.map((k) => (Math.abs(k) < 1e-9 ? 0 : k));
+  }
+  // Ergebnis einer Zeile "x = 3/4" (auch "3/4 = x" oder nur "3/4") als Text für die normale Prüfung; sonst null
+  function zeilenErgebnis(zeile) {
+    const z = String(zeile || "").replace(/[−–]/g, "-").replace(/\s+/g, "");
+    const zahlRe = /^-?\d+([.,]\d+)?(\/-?\d+([.,]\d+)?)?$/;
+    let r = null;
+    if (zahlRe.test(z)) r = z;
+    else { const m = z.match(/^x=(.+)$/i) || z.match(/^(.+)=x$/i); if (m && zahlRe.test(m[1])) r = m[1]; }
+    if (r === null) return null;
+    const [zz, nn] = r.split("/"), v = parseFloat(zz.replace(",", ".")) / (nn ? parseFloat(nn.replace(",", ".")) : 1);
+    if (!isFinite(v)) return null;
+    for (let d = 1; d <= 100; d++) if (Math.abs(v * d - Math.round(v * d)) < 1e-9) return d === 1 ? String(Math.round(v)) : `${Math.round(v * d)}/${d}`;
+    return String(v).replace(".", ",");
+  }
+  // Prüft eine Zwischenzeile gegen die Lösungsmenge {x0} der Ausgangsgleichung:
+  // "ok" (gleichwertig), "falsch", "keineGleichung", "unlesbar"
+  function zeilePruefen(zeile, x0) {
+    const teile = String(zeile || "").split("=");
+    if (!String(zeile || "").trim()) return "leer";
+    if (teile.length !== 2) return teile.length < 2 ? "keineGleichung" : "unlesbar";
+    let fL, fR;
+    try { fL = termParser(teile[0]); fR = termParser(teile[1]); } catch (e) { return "unlesbar"; }
+    const c = polyAusWerten((x) => fL(x) - fR(x));
+    if (!c) return "unlesbar";
+    const grad = c.reduce((g, k, d) => (k ? d : g), -1), tol = 1e-7 * Math.max(1, ...c.map(Math.abs));
+    if (grad < 1) return "falsch";                       // 0 = 0 oder 0 = 5: x ist verloren gegangen
+    const f = (x) => c.reduce((s, k, d) => s + k * Math.pow(x, d), 0);
+    if (Math.abs(f(x0)) > tol * Math.max(1, Math.pow(Math.abs(x0), grad))) return "falsch";
+    if (grad === 2) { const zweite = x0 !== 0 ? c[0] / (c[2] * x0) : -c[1] / c[2]; return Math.abs(zweite - x0) < 1e-6 ? "ok" : "falsch"; }
+    return "ok";
+  }
 const KLAUSUR_PROBLEMS = [
   {
     "id": "A1",
@@ -7216,7 +7317,7 @@ const KLAUSUR_PROBLEMS = [
     }
     const g = gcd(num, den) || 1;
     return {
-      topic: "terme_gleichungen", level: 3, signed: true, prompt: `${linTerm(a, b)} = ${linTerm(c, d)}`, promptText: `${a}x+${b}=${c}x+${d}`,
+      topic: "terme_gleichungen", level: 3, signed: true, zeilen: true, prompt: `${linTerm(a, b)} = ${linTerm(c, d)}`, promptText: `${a}x+${b}=${c}x+${d}`,
       question: `\\text{Löse die Gleichung.}`, numFields: 1, fieldLabels: ["x (Bruch oder Zahl)"], answer: [{ num: num / g, den: den / g }], data: { a, b, c, d }
     };
   }
@@ -7237,7 +7338,7 @@ const KLAUSUR_PROBLEMS = [
     do { a = nz(-6, 6); c = nz(-6, 6); b = nz(-6, 6); d = nz(-6, 6); x0 = randInt(-8, 8); e = a * (x0 + b) - c * (x0 + d); } while (a === c || Math.abs(e) > 30);
     const rechts = `${fak(c)}(x ${d > 0 ? "+" : "-"} ${Math.abs(d)})${e === 0 ? "" : e > 0 ? ` + ${e}` : ` - ${-e}`}`;
     return {
-      topic: "terme_gleichungen", level: 4, signed: true, prompt: `${fak(a)}(x ${b > 0 ? "+" : "-"} ${Math.abs(b)}) = ${rechts}`, promptText: "Klammergleichung",
+      topic: "terme_gleichungen", level: 4, signed: true, zeilen: true, prompt: `${fak(a)}(x ${b > 0 ? "+" : "-"} ${Math.abs(b)}) = ${rechts}`, promptText: "Klammergleichung",
       question: `\\text{Löse die Gleichung.}`, numFields: 1, fieldLabels: ["x"], answer: [x0], data: { a, b, c, d, e, x0 }
     };
   }
@@ -7314,7 +7415,7 @@ const KLAUSUR_PROBLEMS = [
       if (new Set(alle).size !== alle.length) continue;
       if ([Lv, Rv].some((v) => v.filter((g) => g.art === "x").length > 1 || v.filter((g) => g.art === "zahl").length > 1)) continue;
       const g = gcd(Math.abs(num), den) || 1;
-      return { topic: "terme_gleichungen", level: 11, signed: true, prompt: `${seiteTex(Lv, gliedTex)} = ${seiteTex(Rv, gliedTex)}`, promptText: "große Gleichung",
+      return { topic: "terme_gleichungen", level: 11, signed: true, zeilen: true, prompt: `${seiteTex(Lv, gliedTex)} = ${seiteTex(Rv, gliedTex)}`, promptText: "große Gleichung",
         question: `\\text{Löse die Gleichung.}`, numFields: 1, fieldLabels: ["x (Bruch oder Zahl)"], answer: [{ num: num / g, den: den / g }], data: { L: Lv, R: Rv } };
     }
   }
@@ -8962,7 +9063,8 @@ const KLAUSUR_PROBLEMS = [
     renderGraphSVG, pathForFunction, makeTransform,
     diagnose, DIAG_HINWEISE,
     erzeugeKlassenarbeit, noteKA, KA_VORLAGEN, KA_NOTEN, KA_TEILGEBIETE, tippAbschnitte,
-    erklaerungFuer, dreieckSVG
+    erklaerungFuer, dreieckSVG,
+    termParser, zeilenErgebnis, zeilePruefen
   };
 
   if (typeof module !== "undefined" && module.exports) {
@@ -9362,11 +9464,69 @@ const KLAUSUR_PROBLEMS = [
   // Baut die Eingabefelder einer Aufgabe in 'card' und liefert die (versteckten)
   // Eingabe-Elemente zurück. 'prefix' macht die Feld-IDs eindeutig, damit auch
   // mehrere Aufgaben auf einer Seite (Klassenarbeit) funktionieren.
+  // Freie Rechenzeilen: beliebig viele Zwischenzeilen, die letzte Zeile (x = …) wird geprüft.
+  // Nach dem Prüfen zeigt jede Zeile, ob sie noch zur Ausgangsgleichung passt.
+  function vorschauTex(z) {
+    return String(z).replace(/\^\(([^()]*)\)/g, "^{$1}").replace(/\^(-?[\d.,]+)/g, "^{$1}").replace(/²/g, "^{2}").replace(/³/g, "^{3}")
+      .replace(/[*·]/g, " \\cdot ").replace(/=/g, " = ").replace(/([^ ])([+])/g, "$1 $2 ").replace(/(\S)-(?![^{]*})/g, "$1 - ");
+  }
+  function baueRechenzeilen(task, card, prefix, beiEnter) {
+    const wrap = el("div", { class: "rechenzeilen" });
+    wrap.appendChild(el("div", { class: "rz-hinweis", html: "Rechne Zeile für Zeile. In die <b>letzte Zeile</b> kommt das Ergebnis, z. B. <code>x = 3</code> oder <code>x = -5/4</code>." }));
+    const liste = el("div", { class: "rz-liste" });
+    const hidden = el("input", { type: "hidden", id: prefix + "0" });
+    const zeilen = []; hidden._visual = zeilen; hidden._fehlerZiel = () => zeilen[zeilen.length - 1]; // rot wird nur die Ergebniszeile
+    const msg = el("div", { class: "field-msg", id: prefix + "0-msg" });
+    const MARKE = { ok: ["rz-ok", "✓ passt"], falsch: ["rz-falsch", "✗ In dieser Zeile steckt ein Fehler"], folge: ["", ""], keineGleichung: ["rz-info", "Keine Gleichung (= fehlt)"], unlesbar: ["rz-info", "Nicht lesbar – erlaubt sind Zahlen, x, + − · / ^ und Klammern"] };
+    function aktualisiere() { hidden.value = ML.zeilenErgebnis(zeilen.length ? zeilen[zeilen.length - 1].value : "") || (zeilen.length ? zeilen[zeilen.length - 1].value : ""); }
+    function neueZeile(fokus) {
+      const inp = el("input", { type: "text", class: "rz-input", autocomplete: "off", autocapitalize: "off", spellcheck: "false", "aria-label": `Zeile ${zeilen.length + 1}` });
+      const vorschau = el("div", { class: "rz-vorschau" }), marke = el("div", { class: "rz-marke" });
+      inp._marke = marke;
+      inp.addEventListener("input", () => { vorschau.innerHTML = inp.value.trim() ? ML.mathToHtml(vorschauTex(inp.value)) : ""; marke.textContent = ""; marke.className = "rz-marke"; aktualisiere(); });
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); if (beiEnter) beiEnter(); } });
+      zeilen.push(inp);
+      liste.appendChild(el("div", { class: "rz-zeile" }, [inp, vorschau, marke]));
+      plusBtn.disabled = hidden.disabled; minusBtn.style.display = zeilen.length > 1 ? "" : "none";
+      aktualisiere();
+      if (fokus) inp.focus();
+    }
+    const plusBtn = el("button", { type: "button", class: "btn secondary rz-plus", onclick: () => neueZeile(true) }, [document.createTextNode("+ Zusätzliche Zeile")]);
+    const minusBtn = el("button", { type: "button", class: "btn ghost rz-plus", onclick: () => {
+      if (zeilen.length < 2) return; zeilen.pop(); liste.removeChild(liste.lastChild); minusBtn.style.display = zeilen.length > 1 ? "" : "none"; aktualisiere();
+    } }, [document.createTextNode("− Zeile entfernen")]);
+    hidden._buttons = [plusBtn, minusBtn];
+    wrap.appendChild(liste);
+    wrap.appendChild(el("div", { class: "rz-knoepfe" }, [plusBtn, minusBtn]));
+    wrap.appendChild(msg); wrap.appendChild(hidden);
+    card.appendChild(wrap);
+    neueZeile(false);
+    // nach dem Prüfen: jede Zeile gegen die Lösung der Ausgangsgleichung halten (verrät die Lösung nicht)
+    hidden._nachPruefen = () => {
+      const a = task.answer[0], x0 = typeof a === "number" ? a : a.num / a.den;
+      let fehlerGezeigt = false;
+      zeilen.forEach((z, k) => {
+        const letzte = k === zeilen.length - 1;
+        let r = ML.zeilePruefen(z.value, x0);
+        if (r === "leer") { z._marke.textContent = ""; return; }
+        if (r === "falsch" && fehlerGezeigt) r = "folge";             // nur die erste falsche Zeile markieren
+        if (r === "falsch") fehlerGezeigt = true;
+        if (letzte && ML.zeilenErgebnis(z.value) !== null) r = null;   // Ergebnis prüft die normale Prüfung
+        const [cls, txt] = r ? MARKE[r] : ["", ""];
+        z._marke.className = "rz-marke " + cls; z._marke.textContent = txt;
+      });
+      const letzteZ = zeilen.length ? zeilen[zeilen.length - 1].value.trim() : "";
+      msg.dataset.zusatz = !letzteZ ? "Trage in die letzte Zeile dein Ergebnis ein: x = Zahl."
+        : ML.zeilenErgebnis(letzteZ) === null ? "Die letzte Zeile muss das Ergebnis sein: x = Zahl." : "Das Ergebnis in der letzten Zeile stimmt noch nicht.";
+    };
+    return [hidden];
+  }
   function baueEingaben(task, level, card, prefix, beiEnter) {
     // Eingabefelder -- Anzahl richtet sich nach task.numFields (kann > answer.length
     // sein, damit die Feldanzahl selbst nie die Lösung verrät; bei den aktuellen
     // Stufen ist numFields stets gleich answer.length).
     const inputs = [];
+    if (task.zeilen) return baueRechenzeilen(task, card, prefix, beiEnter);
     if (task.graphs && task.fieldType === "select") {
       // Graphen-Zuordnung: Raster aus SVG-Grafik + Beschriftung + Dropdown
       const grid = el("div", { class: "graph-grid" });
@@ -9752,6 +9912,9 @@ const KLAUSUR_PROBLEMS = [
       let hinweise = {};
       try { hinweise = result.correct ? {} : ML.diagnose(task, values, result.fieldErrors); } catch (e) { hinweise = {}; }
 
+      inputs.forEach((inp) => { if (inp._nachPruefen) inp._nachPruefen(); });
+      // Zusatzhinweis eines Eingabebausteins (z. B. Rechenzeilen: letzte Zeile ist noch kein Ergebnis)
+      inputs.forEach((inp, idx) => { const m = document.getElementById("field-" + idx + "-msg"); if (m && m.dataset.zusatz && !result.correct) hinweise[idx] = hinweise[idx] || m.dataset.zusatz; });
       feedbackHolder.innerHTML = "";
       const fb = el("div", { class: "feedback " + (result.correct ? "ok" : "bad") });
       fb.textContent = result.correct ? (state.tipsShown ? "Richtig! (mit Tipp)" : "Richtig!") : "Das passt noch nicht -- schau dir die markierten Felder an.";
@@ -9763,7 +9926,7 @@ const KLAUSUR_PROBLEMS = [
           if (!inp) return;
           inp.classList.add("field-error");
           if (inp._buttons) inp._buttons.forEach(b => b.classList.add("field-error"));
-          if (inp._visual) inp._visual.forEach(v => v.classList.add("field-error"));
+          if (inp._visual) (inp._fehlerZiel ? [inp._fehlerZiel()] : inp._visual).forEach(v => v && v.classList.add("field-error"));
           const label = (task.fieldLabels && task.fieldLabels[idx]) || `Feld ${idx + 1}`;
           const msgEl = document.getElementById("field-" + idx + "-msg");
           if (msgEl) {
