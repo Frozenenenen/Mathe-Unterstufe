@@ -73,7 +73,7 @@ console.log("\nPrüfe Klassenarbeiten ...");
     }
   });
   // Jeder Formelbefehl muss dem Renderer bekannt sein (sonst erscheint z. B. "tfrac" als Text)
-  const bekannt = new Set(["dfrac", "frac", "sqrt", "text", "cdot", "ldots", "log", "ln", "lg", "Leftrightarrow", "Rightarrow", "rightarrow", "approx", "neq", "geq", "leq", "pm", "quad", "qquad", "left", "right", "square", "sin", "cos", "tan", "alpha", "beta", "gamma", "pi", "varepsilon", "epsilon", "varphi", "phi"]);
+  const bekannt = new Set(["dfrac", "frac", "sqrt", "text", "cdot", "ldots", "log", "ln", "lg", "Leftrightarrow", "Rightarrow", "rightarrow", "approx", "neq", "geq", "leq", "pm", "quad", "qquad", "left", "right", "square", "sin", "cos", "tan", "alpha", "beta", "gamma", "pi", "varepsilon", "epsilon", "varphi", "phi", "mbox"]);
   for (let r = 0; r < 300; r++) Object.keys(ML.KA_VORLAGEN).forEach((tk) => {
     const ka = ML.erzeugeKlassenarbeit(tk, 90);
     ka.aufgaben.forEach((a) => [a.kontext].concat(...a.teile.map((t) => [t.text].concat(t.loesung.map((s) => s.left || "")))).filter(Boolean).forEach((src) => {

@@ -118,6 +118,96 @@
     ];
   }
 
+  // ---- Stufe 11: Große lineare Gleichungen – je Seite 4 Terme, binomische Formeln, x² fällt weg ----
+  // Glied: { s: ±1, art, ... , p: [c0, c1, c2] }  (p = Polynom des Gliedes MIT Vorzeichen)
+  const xGlied = (p, q) => linTerm(p, q);                           // px + q
+  function polyTex(c0, c1, c2) {                                     // c2·x² + c1·x + c0
+    const t = [];
+    if (c2) t.push([c2, "x^{2}"]); if (c1) t.push([c1, "x"]); if (c0 || !t.length) t.push([c0, ""]);
+    return t.map(([k, v], i) => { const b = Math.abs(k), z = v && b === 1 ? v : `${b}${v}`; return (i === 0 ? (k < 0 ? "-" : "") : k < 0 ? " - " : " + ") + z; }).join("");
+  }
+  function gliedTex(g) {
+    if (g.art === "quadrat") return `(${xGlied(g.a, g.b)})^{2}`;
+    if (g.art === "produkt") return `(${xGlied(g.a, g.b)})(${xGlied(g.c, g.d)})`;
+    if (g.art === "klammer") return `${g.m === 1 ? "" : g.m}(${xGlied(1, g.b)})`;
+    if (g.art === "x") return g.k === 1 ? "x" : `${g.k}x`;
+    return `${g.k}`;
+  }
+  // jedes Glied samt Vorzeichen bleibt beim Umbrechen zusammen
+  const seiteTex = (gl, f) => gl.map((g, i) => `\\mbox{${(i === 0 ? (g.s < 0 ? "-" : "") : g.s < 0 ? "- " : "+ ") + f(g)}}`).join(" ");
+  function gliedPoly(g) {
+    let p;
+    if (g.art === "quadrat") p = [g.b * g.b, 2 * g.a * g.b, g.a * g.a];
+    else if (g.art === "produkt") p = [g.b * g.d, g.a * g.d + g.b * g.c, g.a * g.c];
+    else if (g.art === "klammer") p = [g.m * g.b, g.m, 0];
+    else if (g.art === "x") p = [0, g.k, 0];
+    else p = [g.k, 0, 0];
+    return p.map((v) => v * g.s);
+  }
+  const summe = (gl) => gl.map(gliedPoly).reduce((s, p) => s.map((v, i) => v + p[i]), [0, 0, 0]);
+  function quadGlied() {
+    const a = Math.random() < 0.75 ? 1 : 2, s = Math.random() < 0.5 ? 1 : -1;
+    if (Math.random() < 0.55) return { art: "quadrat", s, a, b: nz(-7, 7) };
+    if (Math.random() < 0.5) { const b = randInt(1, 7); return { art: "produkt", s, a, b, c: a, d: -b }; } // 3. binomische Formel
+    return { art: "produkt", s, a, b: nz(-6, 6), c: a, d: nz(-6, 6) };
+  }
+  function linGlied(art) {
+    const s = Math.random() < 0.5 ? 1 : -1;
+    if (art === "klammer") return { art, s, m: randInt(2, 6), b: nz(-7, 7) };
+    if (art === "x") return { art, s, k: randInt(1, 9) };
+    return { art: "zahl", s, k: randInt(1, 20) };
+  }
+  function gen_term_11() {
+    for (;;) {
+      const nL = randInt(1, 2), nR = randInt(1, 2);
+      const L = Array.from({ length: nL }, quadGlied), R = Array.from({ length: nR }, quadGlied);
+      const sL = summe(L), sR = summe(R);
+      if (sL[2] !== sR[2] || sL[2] === 0) continue;                  // x² auf beiden Seiten, hebt sich gegenseitig auf
+      if (L.concat(R).filter((g) => g.s > 0).length === 0) continue;
+      // auf 4 Glieder je Seite auffüllen: genau eine Zahl ganz rechts im Pool, Rest Klammer/x
+      const fuell = (n, zahl) => { const r = []; for (let i = 0; i < n; i++) r.push(linGlied(zahl && i === n - 1 ? "zahl" : choice(["klammer", "x", "klammer", "zahl"]))); return r; };
+      const Lv = mische(L.concat(fuell(4 - nL, false))), Rv = mische(R.concat(fuell(4 - nR, true)));
+      const zahlGl = Rv.filter((g) => g.art === "zahl").pop();
+      // Lösung festlegen und die letzte Zahl rechts passend wählen
+      const P = summe(Lv), Q0 = summe(Rv.filter((g) => g !== zahlGl)), A = P[1] - Q0[1];
+      if (A === 0 || Math.abs(A) > 20) continue;
+      const den = Math.random() < 0.25 ? choice([2, 3, 4]) : 1, num = randInt(-10, 10);
+      if (den > 1 && (gcd(Math.abs(num), den) !== 1 || A % den !== 0)) continue;
+      const k = A * num / den + P[0] - Q0[0];                       // P(x) = Q0(x) + k
+      if (k === 0 || Math.abs(k) > 40) continue;
+      zahlGl.s = k > 0 ? 1 : -1; zahlGl.k = Math.abs(k);
+      if (Lv[0].s < 0 && Rv[0].s < 0) continue;
+      // keine Glieder, die sich sofort wegheben oder auf beiden Seiten gleich sind; je Seite höchstens ein x- und ein Zahlglied
+      const sch = (g) => JSON.stringify(Object.assign({}, g, { s: 0 })), alle = Lv.concat(Rv).map(sch);
+      if (new Set(alle).size !== alle.length) continue;
+      if ([Lv, Rv].some((v) => v.filter((g) => g.art === "x").length > 1 || v.filter((g) => g.art === "zahl").length > 1)) continue;
+      const g = gcd(Math.abs(num), den) || 1;
+      return { topic: "terme_gleichungen", level: 11, signed: true, prompt: `${seiteTex(Lv, gliedTex)} = ${seiteTex(Rv, gliedTex)}`, promptText: "große Gleichung",
+        question: `\\text{Löse die Gleichung.}`, numFields: 1, fieldLabels: ["x (Bruch oder Zahl)"], answer: [{ num: num / g, den: den / g }], data: { L: Lv, R: Rv } };
+    }
+  }
+  // ausmultipliziertes Glied: mit Minus davor bei Quadraten/Produkten in Klammern (erst im nächsten Schritt aufgelöst)
+  function gliedAus(g, klammer) {
+    const p = gliedPoly(g);
+    if (klammer && g.s < 0 && (g.art === "quadrat" || g.art === "produkt")) return { s: -1, t: `(${polyTex(-p[0], -p[1], -p[2])})` };
+    return { s: 1, t: polyTex(p[0], p[1], p[2]), roh: true };
+  }
+  function seiteAus(gl, klammer) {
+    return gl.map((g, i) => { const a = gliedAus(g, klammer); if (a.roh) return i === 0 ? a.t : a.t[0] === "-" ? " - " + a.t.slice(1) : " + " + a.t; return (i === 0 ? "-" : " - ") + a.t; }).join("");
+  }
+  function steps_term_11(task) {
+    const { L, R } = task.data, P = summe(L), Q = summe(R), mk = L.concat(R).some((g) => g.s < 0 && (g.art === "quadrat" || g.art === "produkt"));
+    const A = P[1] - Q[1], B = Q[0] - P[0], st = [];
+    st.push({ label: "Binomische Formeln und Klammern auflösen (Minus vor einer Klammer erst stehen lassen)" }, { left: `${seiteAus(L, true)} = ${seiteAus(R, true)}`, right: "" });
+    if (mk) st.push({ label: "Minusklammern auflösen: alle Vorzeichen in der Klammer umdrehen" }, { left: `${seiteAus(L, false)} = ${seiteAus(R, false)}`, right: "" });
+    st.push({ label: "Jede Seite zusammenfassen" }, { left: `${polyTex(P[0], P[1], P[2])} = ${polyTex(Q[0], Q[1], Q[2])}`, right: "" });
+    st.push({ label: `Auf beiden Seiten ${P[2] > 0 ? "−" : "+"} ${Math.abs(P[2]) === 1 ? "" : Math.abs(P[2])}x² rechnen – x² fällt weg` }, { left: `${polyTex(P[0], P[1], 0)} = ${polyTex(Q[0], Q[1], 0)}`, right: "" });
+    st.push({ label: "x-Glieder nach links, Zahlen nach rechts" }, { left: `${polyTex(0, A, 0)} = ${B}`, right: "" });
+    if (A !== 1) st.push({ label: `Durch ${A} teilen` }, { left: `x = ${bruchTex(B, A)}`, right: "" });
+    st.push({ label: "Probe: Lösung in beide Seiten einsetzen – es muss dasselbe herauskommen." });
+    return st;
+  }
+
   // ---- Stufe 5: Binomische Formeln anwenden ----
   function gen_term_5() {
     const sub = choice(["plus", "minus", "dritte", "koeff", "zweiVar", "luecke"]), a = randInt(1, 9);
@@ -334,6 +424,7 @@
       { id: 3, name: "Lineare Gleichungen lösen", grade: "Kl. 7–8", signed: true, generate: gen_term_3, check: check_bruchfelder, steps: mitAusgang(steps_term_3) },
       { id: 4, name: "Gleichungen mit Klammern", grade: "Kl. 8", signed: true, generate: gen_term_4, check: check_zahlen, steps: mitAusgang(steps_term_4) },
       { id: 5, name: "Binomische Formeln", grade: "Kl. 8", signed: true, generate: gen_term_5, check: check_zahlen, steps: steps_term_5 },
+      { id: 11, name: "Große Gleichungen mit Binomen", grade: "Kl. 8–9", signed: true, generate: gen_term_11, check: check_bruchfelder, steps: mitAusgang(steps_term_11) },
       { id: 6, name: "Faktorisieren", grade: "Kl. 8–9", signed: true, generate: gen_term_6, check: check_zahlen, steps: steps_term_6 },
       { id: 7, name: "Lineare Gleichungssysteme", grade: "Kl. 8–9", signed: true, generate: gen_term_7, check: check_zahlen, steps: mitAusgang(steps_term_7) },
       { id: 8, name: "Gleichungen aufstellen", grade: "Kl. 7–9", generate: gen_term_8, check: check_textaufgabe, steps: steps_textaufgabe },
@@ -360,6 +451,12 @@
       [T("Zuerst alle Klammern auflösen, dann wie eine normale lineare Gleichung lösen.")],
       [{ left: `2(x + 3) = 5(x - 1) - 1 \\;\\Rightarrow\\; 2x + 6 = 5x - 6 \\;\\Rightarrow\\; 12 = 3x \\;\\Rightarrow\\; x = 4`, right: "" }],
       [T("Beim Auflösen der rechten Klammer die Zahl dahinter mit in die Klammer ziehen.")]),
+    "terme_gleichungen/11": E("Große Gleichungen mit Binomen",
+      [T("1. Binomische Formeln und Klammern auflösen. Steht ein Minus vor einem Binom, das Ergebnis erst in Klammern schreiben."), T("2. Minusklammern auflösen: alle Vorzeichen in der Klammer umdrehen."), T("3. Jede Seite zusammenfassen. Die x² heben sich weg – übrig bleibt eine lineare Gleichung."), T("4. Wie gewohnt lösen, dann Probe.")],
+      [{ left: `(x + 3)^{2} + 2(x - 1) - x - 5 = (x - 2)(x + 2) + 3(x + 1) - x + 13`, right: "" },
+       { left: `x^{2} + 6x + 9 + 2x - 2 - x - 5 = x^{2} - 4 + 3x + 3 - x + 13`, right: "" },
+       { left: `x^{2} + 7x + 2 = x^{2} + 2x + 12 \\;\\Rightarrow\\; 7x + 2 = 2x + 12 \\;\\Rightarrow\\; 5x = 10 \\;\\Rightarrow\\; x = 2`, right: "" }],
+      [T("Minus vor dem Binom: nur beim x² das Vorzeichen gedreht, bei den anderen Gliedern nicht."), T("Mischglied vergessen: (x + 3)² ist NICHT x² + 9."), T("Bleibt x² stehen, ist beim Auflösen ein Fehler passiert.")]),
     "terme_gleichungen/5": E("Binomische Formeln",
       [`(a + b)^{2} = a^{2} + 2ab + b^{2}`, `(a - b)^{2} = a^{2} - 2ab + b^{2}`, `(a + b)(a - b) = a^{2} - b^{2}`],
       [{ left: `(x + 3)^{2} = x^{2} + 6x + 9`, right: "" }, { left: `(2x - 5)^{2} = 4x^{2} - 20x + 25`, right: "" }],
@@ -419,6 +516,18 @@
       const { a, b, c, d } = t.data;
       return [(d + b) / (a - c), (d - b) / (a + c), (d + b) / (a + c)].some((x) => isFinite(x) && nah(w.v, x, 1e-4)) ? H.seitenwechsel : null; // auch gerundete Eingaben
     },
+    "terme_gleichungen/11": (t, i, w) => {
+      const { L, R } = t.data;
+      const loes = (pf) => { const P = L.map(pf).reduce((a, p) => a.map((v, j) => v + p[j]), [0, 0, 0]), Q = R.map(pf).reduce((a, p) => a.map((v, j) => v + p[j]), [0, 0, 0]); return P[1] === Q[1] ? NaN : (Q[0] - P[0]) / (P[1] - Q[1]); };
+      const bin = (g) => g.art === "quadrat" || g.art === "produkt";
+      // Fehler 1: Minus vor dem Binom nur aufs erste Glied (x²) angewendet
+      const ohneMinus = (g) => { const p = gliedPoly(g); return g.s < 0 && bin(g) ? [-p[0], -p[1], p[2]] : p; };
+      // Fehler 2: Mischglied vergessen bei (ax + b)²
+      const ohneMisch = (g) => { const p = gliedPoly(g); return g.art === "quadrat" ? [p[0], 0, p[2]] : p; };
+      if (L.concat(R).some((g) => g.s < 0 && bin(g)) && nah(w.v, loes(ohneMinus), 1e-4)) return H.minusKlammer;
+      if (L.concat(R).some((g) => g.art === "quadrat") && nah(w.v, loes(ohneMisch), 1e-4)) return H.mischglied;
+      return null;
+    },
     "terme_gleichungen/5": (t, i, w) => {
       const s = t.subtype, d = t.data;
       if (s === "koeff") {
@@ -441,7 +550,7 @@
   // --- Klassenarbeit ---
   KA_VORLAGEN.terme_gleichungen = [
     { key: "terme", teil: "A", afb: 1, titel: "Terme vereinfachen", baue: () => ({ kontext: T("Vereinfache so weit wie möglich."), teile: [stufenTeil("terme_gleichungen", 1), stufenTeil("terme_gleichungen", 2, (t) => t.subtype !== "verschachtelt"), stufenTeil("terme_gleichungen", 2, (t) => t.subtype === "verschachtelt")] }) },
-    { key: "gleichungen", teil: "A", afb: 1, titel: "Gleichungen lösen", baue: () => ({ kontext: "", teile: [stufenTeil("terme_gleichungen", 3), stufenTeil("terme_gleichungen", 3), stufenTeil("terme_gleichungen", 4)] }) },
+    { key: "gleichungen", teil: "A", afb: 1, titel: "Gleichungen lösen", baue: () => ({ kontext: "", teile: [stufenTeil("terme_gleichungen", 3), stufenTeil("terme_gleichungen", 4), stufenTeil("terme_gleichungen", 11)] }) },
     { key: "binomisch", teil: "A", afb: 2, titel: "Binomische Formeln", baue: () => ({ kontext: "", teile: [stufenTeil("terme_gleichungen", 5, (t) => ["plus", "minus", "dritte"].includes(t.subtype)), stufenTeil("terme_gleichungen", 5, (t) => ["koeff", "zweiVar"].includes(t.subtype)), stufenTeil("terme_gleichungen", 5, (t) => t.subtype === "luecke"), stufenTeil("terme_gleichungen", 6)] }) },
     { key: "fehler", teil: "A", afb: 3, titel: "Fehler finden und Aussagen prüfen", baue: () => {
       const pool = [

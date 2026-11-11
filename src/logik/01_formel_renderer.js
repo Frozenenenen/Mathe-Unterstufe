@@ -64,6 +64,7 @@
             break;
           }
           case "text": out += `<span class="mtext">${readGroup(false)}</span>`; break;
+          case "mbox": out += `<span class="nobr">${readGroup()}</span>`; break; // Gruppe ohne Zeilenumbruch
           case "cdot": out += " · "; break;
           case "ldots": out += "…"; break;
           case "log": out += "log"; break;

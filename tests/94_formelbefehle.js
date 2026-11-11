@@ -2,7 +2,7 @@
 console.log("\nPrüfe Formelbefehle aller Stufen ...");
 (function () {
   const before = totalErrors;
-  const bekannt = new Set(["dfrac", "frac", "sqrt", "text", "cdot", "ldots", "log", "ln", "lg", "Leftrightarrow", "Rightarrow", "rightarrow", "approx", "neq", "geq", "leq", "pm", "quad", "qquad", "left", "right", "square", "sin", "cos", "tan", "alpha", "beta", "gamma", "pi", "varepsilon", "epsilon", "varphi", "phi"]);
+  const bekannt = new Set(["dfrac", "frac", "sqrt", "text", "cdot", "ldots", "log", "ln", "lg", "Leftrightarrow", "Rightarrow", "rightarrow", "approx", "neq", "geq", "leq", "pm", "quad", "qquad", "left", "right", "square", "sin", "cos", "tan", "alpha", "beta", "gamma", "pi", "varepsilon", "epsilon", "varphi", "phi", "mbox"]);
   Object.keys(ML.TOPICS).forEach((tk) => ML.TOPICS[tk].levels.forEach((l) => {
     for (let i = 0; i < 200; i++) {
       const t = l.generate(); totalChecked++;

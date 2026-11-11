@@ -106,3 +106,23 @@ console.log("\nPrüfe Eingaben mit Plus/typografischem Minus und (x − ?)² ...
   }
   done("eingabe", before, n);
 }
+
+// --- Stufe 11: große Gleichungen. Referenz NUR aus dem Aufgabentext: TeX → JS-Ausdruck, numerisch auswerten ---
+function ohneMbox(tex) { let o = "", i = 0; const offen = []; while (i < tex.length) { if (tex.startsWith("\\mbox{", i)) { offen.push(0); i += 6; continue; } const c = tex[i]; if (c === "{") offen.push(1); if (c === "}") { if (offen.pop() === 0) { i++; continue; } } o += c; i++; } return o; }
+function seiteAusTex(tex) {
+  tex = ohneMbox(tex);
+  const js = tex.replace(/\^\{2\}/g, "**2").replace(/\s+/g, "")
+    .replace(/(\d)(x|\()/g, "$1*$2").replace(/\)\(/g, ")*(").replace(/x/g, "(X)");
+  return new Function("X", "return " + js.replace(/^-\(/, "-1*(").replace(/([+-])\(/g, "$1(") + ";");
+}
+function gliederZahl(tex) { let t = 0, n = 0; for (let i = 0; i < tex.length; i++) { const c = tex[i]; if (c === "(") t++; else if (c === ")") t--; else if (t === 0 && (c === "+" || c === "-") && tex.slice(0, i).trim()) n++; } return n + 1; }
+testLevel("terme_gleichungen", 11, (t) => {
+  const [l, r] = ohneMbox(t.prompt).split("="); if (gliederZahl(l) !== 4 || gliederZahl(r) !== 4) throw new Error("nicht je 4 Glieder");
+  if (!/\^\{2\}|\)\(/.test(t.prompt)) throw new Error("kein Binom");
+  const fL = seiteAusTex(l), fR = seiteAusTex(r), f = (x) => fL(x) - fR(x);
+  const [A, B, C] = koeffAusWerten(f);
+  if (Math.abs(A) > 1e-9) throw new Error("x² hebt sich nicht auf");
+  if (Math.abs(B) < 1e-9) throw new Error("keine eindeutige Lösung");
+  const x = -C / B; for (let d = 1; d <= 4; d++) if (Math.abs(x * d - Math.round(x * d)) < 1e-9) return [{ num: Math.round(x * d), den: d }];
+  throw new Error("Lösung kein einfacher Bruch");
+}, "Große Gleichungen mit Binomen");
