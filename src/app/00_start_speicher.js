@@ -89,6 +89,10 @@
     persistStats();
   }
   // Gewählte Darstellung (z. B. Torte oder Balken), gilt für alle folgenden Aufgaben
+  // Abgeschaltete Aufgabentypen je Stufe: { "brueche/10": ["ablesen", ...] }
+  const TYPEN_KEY = "__typenAus";
+  function typenAus(k) { return ((statsCache[TYPEN_KEY] || {})[k]) || []; }
+  function setzeTypenAus(k, liste) { const m = statsCache[TYPEN_KEY] = statsCache[TYPEN_KEY] || {}; if (liste.length) m[k] = liste; else delete m[k]; persistStats(); }
   const DARSTELLUNG_KEY = "__darstellung";
   function darstellungsArt(moeglich) { const a = (statsCache[DARSTELLUNG_KEY] || {}).art; return moeglich.includes(a) ? a : moeglich[0]; }
   function setzeDarstellungsArt(a) { statsCache[DARSTELLUNG_KEY] = { art: a }; persistStats(); }

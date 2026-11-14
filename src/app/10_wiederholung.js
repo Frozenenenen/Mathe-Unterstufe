@@ -25,6 +25,16 @@
   // Neue Aufgabe: in jeder 2. Aufgabe wird (falls vorgemerkt) gezielt ein
   // zuletzt nicht geschaffter Aufgabentyp ausgewählt.
   function erzeugeAufgabe(topicKey, level) {
+    // abgeschaltete Aufgabentypen überspringen (mindestens ein Typ bleibt immer an)
+    const aus = level.typen ? typenAus(statKey(topicKey, level.id)) : [];
+    if (aus.length) {
+      let t = null;
+      for (let i = 0; i < 300; i++) { t = erzeugeAufgabeRoh(topicKey, level); if (!aus.includes(typVon(t))) return t; }
+      return t;
+    }
+    return erzeugeAufgabeRoh(topicKey, level);
+  }
+  function erzeugeAufgabeRoh(topicKey, level) {
     const e = reviewMap()[statKey(topicKey, level.id)];
     if (e && Object.keys(e).length && Math.random() < 0.5) {
       const gesucht = new Set(Object.keys(e));

@@ -887,7 +887,7 @@
       name: "Bruchrechnung",
       grade: "Kl. 5–6",
       levels: [
-        { id: 10, name: "Brüche als Torte oder Balken", grade: "Kl. 5–6", generate: gen_brueche_10, check: check_brueche_10, steps: steps_brueche_10 },
+        { id: 10, name: "Brüche als Torte oder Balken", grade: "Kl. 5–6", typen: { ablesen: "Anteil ablesen", rest: "Nicht gefärbter Rest", zuordnen: "Passende Figur finden", vergleichen: "Zwei Figuren vergleichen", zweiFarben: "Zwei Farben", gemischt: "Mehr als ein Ganzes" }, generate: gen_brueche_10, check: check_brueche_10, steps: steps_brueche_10 },
         { id: 1, name: "Was ist größer? (gleicher Nenner/Zähler)", grade: "Kl. 5", generate: gen_brueche_1, check: check_brueche_1, steps: steps_brueche_1 },
         { id: 2, name: "Ungleichnamige Brüche vergleichen", grade: "Kl. 5–6", generate: gen_brueche_2, check: check_brueche_2, steps: steps_brueche_2 },
         { id: 9, name: "Brüche am Zahlenstrahl", grade: "Kl. 5–6", generate: gen_brueche_9, check: check_brueche_9, steps: steps_brueche_9 },

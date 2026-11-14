@@ -88,6 +88,29 @@
     const metaZeile = el("div", { class: "meta-zeile" }, [text("div", "task-meta", level.grade)]);
     if (erkl) metaZeile.appendChild(el("button", { class: "erkl-btn", onclick: () => zeigeErklaerung(false) }, [document.createTextNode("📖 Erklärung")]));
     card.appendChild(metaZeile);
+    if (level.typen) {
+      // Aufgabentypen dieser Stufe einzeln an- und abschalten
+      const k = statKey(state.topicKey, level.id), alle = Object.keys(level.typen), aus = typenAus(k);
+      const box = el("details", { class: "typen-wahl" });
+      if (state.typenOffen) box.open = true;
+      box.addEventListener("toggle", () => { state.typenOffen = box.open; });
+      box.appendChild(el("summary", {}, [document.createTextNode(`⚙ Aufgabentypen (${alle.length - aus.length} von ${alle.length} an)`)]));
+      const liste = el("div", { class: "typen-liste" });
+      alle.forEach((typ) => {
+        const cb = el("input", { type: "checkbox", id: "typ-" + typ });
+        cb.checked = !aus.includes(typ);
+        cb.addEventListener("change", () => {
+          const neu = alle.filter((t) => !document.getElementById("typ-" + t).checked);
+          if (neu.length === alle.length) { cb.checked = true; return; } // mindestens einer bleibt an
+          setzeTypenAus(k, neu);
+          if (neu.includes(typVon(state.task))) { state.task = erzeugeAufgabe(state.topicKey, level); state.checked = false; state.showSteps = false; state.stepsRevealed = false; state.tipsShown = 0; }
+          render();
+        });
+        liste.appendChild(el("label", { class: "typen-eintrag", for: "typ-" + typ }, [cb, document.createTextNode(" " + level.typen[typ])]));
+      });
+      box.appendChild(liste);
+      card.appendChild(box);
+    }
     if (task._wiederholung) card.appendChild(text("div", "wdh-note", "🔁 Wiederholung: Diesen Aufgabentyp hast du zuletzt nicht geschafft."));
     if (level.calculatorHint) {
       card.appendChild(text("div", "calc-hint", "🖩 " + level.calculatorHint));

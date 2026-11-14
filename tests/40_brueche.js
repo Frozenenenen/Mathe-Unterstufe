@@ -132,3 +132,13 @@ testLevel("brueche", 10, (t) => {
   if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error("Torte und Balken zeigen Verschiedenes");
   return a;
 }, "Torte oder Balken");
+
+// --- Abschaltbare Aufgabentypen: Liste der Stufe und tatsächlich erzeugte Typen müssen übereinstimmen ---
+for (const [tk, T] of Object.entries(ML.TOPICS)) for (const L of T.levels) {
+  if (!L.typen) continue;
+  totalChecked++;
+  const gesehen = new Set(); for (let i = 0; i < 2000; i++) gesehen.add(String(L.generate().subtype));
+  const liste = Object.keys(L.typen);
+  for (const s of gesehen) if (!liste.includes(s)) fail(`${tk}/${L.id}: Typ „${s}“ fehlt in der Typenliste`);
+  for (const s of liste) if (!gesehen.has(s)) fail(`${tk}/${L.id}: Typ „${s}“ wird nie erzeugt`);
+}

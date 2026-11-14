@@ -216,6 +216,11 @@
   .besten-details summary { cursor: pointer; margin-top: 6px; font-size: 0.92em; color: var(--accent); }
   .besten-details ol { margin: 4px 0 0 0; padding-left: 22px; font-size: 0.92em; }
   .nobr { white-space: nowrap; }
+  .typen-wahl { margin: 4px 0 10px; font-size: 0.9rem; }
+  .typen-wahl summary { cursor: pointer; color: #475569; }
+  .typen-liste { display: flex; flex-direction: column; gap: 6px; padding: 8px 4px 2px; }
+  .typen-eintrag { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .typen-eintrag input { width: 18px; height: 18px; }
   .rechenzeilen { margin: 8px 0 4px; }
   .rz-hinweis { font-size: 0.9rem; color: #475569; margin-bottom: 8px; }
   .rz-hinweis code { white-space: nowrap; background: #f1f5f9; padding: 1px 4px; border-radius: 4px; }
@@ -5333,7 +5338,7 @@ const KLAUSUR_PROBLEMS = [
       name: "Bruchrechnung",
       grade: "Kl. 5–6",
       levels: [
-        { id: 10, name: "Brüche als Torte oder Balken", grade: "Kl. 5–6", generate: gen_brueche_10, check: check_brueche_10, steps: steps_brueche_10 },
+        { id: 10, name: "Brüche als Torte oder Balken", grade: "Kl. 5–6", typen: { ablesen: "Anteil ablesen", rest: "Nicht gefärbter Rest", zuordnen: "Passende Figur finden", vergleichen: "Zwei Figuren vergleichen", zweiFarben: "Zwei Farben", gemischt: "Mehr als ein Ganzes" }, generate: gen_brueche_10, check: check_brueche_10, steps: steps_brueche_10 },
         { id: 1, name: "Was ist größer? (gleicher Nenner/Zähler)", grade: "Kl. 5", generate: gen_brueche_1, check: check_brueche_1, steps: steps_brueche_1 },
         { id: 2, name: "Ungleichnamige Brüche vergleichen", grade: "Kl. 5–6", generate: gen_brueche_2, check: check_brueche_2, steps: steps_brueche_2 },
         { id: 9, name: "Brüche am Zahlenstrahl", grade: "Kl. 5–6", generate: gen_brueche_9, check: check_brueche_9, steps: steps_brueche_9 },
@@ -9166,6 +9171,10 @@ const KLAUSUR_PROBLEMS = [
     persistStats();
   }
   // Gewählte Darstellung (z. B. Torte oder Balken), gilt für alle folgenden Aufgaben
+  // Abgeschaltete Aufgabentypen je Stufe: { "brueche/10": ["ablesen", ...] }
+  const TYPEN_KEY = "__typenAus";
+  function typenAus(k) { return ((statsCache[TYPEN_KEY] || {})[k]) || []; }
+  function setzeTypenAus(k, liste) { const m = statsCache[TYPEN_KEY] = statsCache[TYPEN_KEY] || {}; if (liste.length) m[k] = liste; else delete m[k]; persistStats(); }
   const DARSTELLUNG_KEY = "__darstellung";
   function darstellungsArt(moeglich) { const a = (statsCache[DARSTELLUNG_KEY] || {}).art; return moeglich.includes(a) ? a : moeglich[0]; }
   function setzeDarstellungsArt(a) { statsCache[DARSTELLUNG_KEY] = { art: a }; persistStats(); }
@@ -9208,6 +9217,16 @@ const KLAUSUR_PROBLEMS = [
   // Neue Aufgabe: in jeder 2. Aufgabe wird (falls vorgemerkt) gezielt ein
   // zuletzt nicht geschaffter Aufgabentyp ausgewählt.
   function erzeugeAufgabe(topicKey, level) {
+    // abgeschaltete Aufgabentypen überspringen (mindestens ein Typ bleibt immer an)
+    const aus = level.typen ? typenAus(statKey(topicKey, level.id)) : [];
+    if (aus.length) {
+      let t = null;
+      for (let i = 0; i < 300; i++) { t = erzeugeAufgabeRoh(topicKey, level); if (!aus.includes(typVon(t))) return t; }
+      return t;
+    }
+    return erzeugeAufgabeRoh(topicKey, level);
+  }
+  function erzeugeAufgabeRoh(topicKey, level) {
     const e = reviewMap()[statKey(topicKey, level.id)];
     if (e && Object.keys(e).length && Math.random() < 0.5) {
       const gesucht = new Set(Object.keys(e));
@@ -9408,6 +9427,10 @@ const KLAUSUR_PROBLEMS = [
       } else if (k === "__spieler") {
         if (typeof v.name !== "string" || v.name.length > 30) return { fehler: "Ungültiger Name in der Sicherung." };
         rein[k] = { name: v.name };
+      } else if (k === "__typenAus") {
+        const m = {};
+        for (const [st, l] of Object.entries(v || {})) if (/^[a-z_]+-\d+$/.test(st) && Array.isArray(l)) m[st] = l.filter((x) => typeof x === "string" && x.length <= 30).slice(0, 20);
+        rein[k] = m;
       } else if (k === "__darstellung") {
         rein[k] = { art: ["balken", "beide"].includes(v.art) ? v.art : "torte" };
       } else if (k === "__serie") {
@@ -9775,6 +9798,29 @@ const KLAUSUR_PROBLEMS = [
     const metaZeile = el("div", { class: "meta-zeile" }, [text("div", "task-meta", level.grade)]);
     if (erkl) metaZeile.appendChild(el("button", { class: "erkl-btn", onclick: () => zeigeErklaerung(false) }, [document.createTextNode("📖 Erklärung")]));
     card.appendChild(metaZeile);
+    if (level.typen) {
+      // Aufgabentypen dieser Stufe einzeln an- und abschalten
+      const k = statKey(state.topicKey, level.id), alle = Object.keys(level.typen), aus = typenAus(k);
+      const box = el("details", { class: "typen-wahl" });
+      if (state.typenOffen) box.open = true;
+      box.addEventListener("toggle", () => { state.typenOffen = box.open; });
+      box.appendChild(el("summary", {}, [document.createTextNode(`⚙ Aufgabentypen (${alle.length - aus.length} von ${alle.length} an)`)]));
+      const liste = el("div", { class: "typen-liste" });
+      alle.forEach((typ) => {
+        const cb = el("input", { type: "checkbox", id: "typ-" + typ });
+        cb.checked = !aus.includes(typ);
+        cb.addEventListener("change", () => {
+          const neu = alle.filter((t) => !document.getElementById("typ-" + t).checked);
+          if (neu.length === alle.length) { cb.checked = true; return; } // mindestens einer bleibt an
+          setzeTypenAus(k, neu);
+          if (neu.includes(typVon(state.task))) { state.task = erzeugeAufgabe(state.topicKey, level); state.checked = false; state.showSteps = false; state.stepsRevealed = false; state.tipsShown = 0; }
+          render();
+        });
+        liste.appendChild(el("label", { class: "typen-eintrag", for: "typ-" + typ }, [cb, document.createTextNode(" " + level.typen[typ])]));
+      });
+      box.appendChild(liste);
+      card.appendChild(box);
+    }
     if (task._wiederholung) card.appendChild(text("div", "wdh-note", "🔁 Wiederholung: Diesen Aufgabentyp hast du zuletzt nicht geschafft."));
     if (level.calculatorHint) {
       card.appendChild(text("div", "calc-hint", "🖩 " + level.calculatorHint));

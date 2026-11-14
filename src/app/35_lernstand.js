@@ -52,6 +52,10 @@
       } else if (k === "__spieler") {
         if (typeof v.name !== "string" || v.name.length > 30) return { fehler: "Ungültiger Name in der Sicherung." };
         rein[k] = { name: v.name };
+      } else if (k === "__typenAus") {
+        const m = {};
+        for (const [st, l] of Object.entries(v || {})) if (/^[a-z_]+-\d+$/.test(st) && Array.isArray(l)) m[st] = l.filter((x) => typeof x === "string" && x.length <= 30).slice(0, 20);
+        rein[k] = m;
       } else if (k === "__darstellung") {
         rein[k] = { art: ["balken", "beide"].includes(v.art) ? v.art : "torte" };
       } else if (k === "__serie") {
